@@ -1,5 +1,9 @@
+#pragma once
+
+#include <stdio.h>
+
 #define SYMTABLE_LEN 64
-#define IDENT_STR_LEN 256
+#define IDENT_MAX_STR_LEN 256
 
 
 typedef struct _symtable{
@@ -10,11 +14,14 @@ typedef struct _symtable{
 typedef SymbolTable* Atom;
 typedef SymbolTable* Variable;
 
+typedef enum{TOK_INTEGER,TOK_ATOM,TOK_VARIABLE,TOK_ASCII,TOK_QUESTION,TOK_IMPLICATION,TOK_ENDOFFILE} TokenTag;
+typedef enum{TERM_ATOM,TERM_INTEGER,TERM_VARIABLE,TERM_STRUCTURE} TermTag;
+
 typedef struct _token{
 	//QUESTION ?-
 	//IMPLICATION :-
 	//ASCII . + * , ( ) etc...
-	enum{INTEGER,ATOM,VARIABLE,ASCII,QUESTION,IMPLICATION,ENDOFFILE} tag;
+	TokenTag tag;
 	union{
 		int integer;
 		Atom atom;
@@ -40,7 +47,7 @@ typedef struct _clause{
 } Clause;
 
 typedef struct _term{
-	enum{ATOM,INTEGER,VARIABLE,STRUCTURE} tag;
+	TermTag tag;
 	union {
 		Atom atom;
 		int integer;
@@ -69,9 +76,14 @@ typedef struct _program{
 } Program;
 
 
-SymbolTable symtable[SYMTABLE_LEN];
+//etc.c
+void error(char* msg);
 
-int sym_hash(char* str);
+//symbol.c
+extern SymbolTable symtable[SYMTABLE_LEN];
 SymbolTable* sym_get(char* str);
+
+//lexer.c
+Token token_get(FILE* in);
 
 

@@ -32,6 +32,9 @@
 			<Add option="-Wall" />
 		</Compiler>
 		<Unit filename="bnf.txt" />
+		<Unit filename="etc.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="header.h" />
 		<Unit filename="lexer.c">
 			<Option compilerVar="CC" />

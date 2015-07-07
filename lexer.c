@@ -1,11 +1,12 @@
 #include <stdio.h>
-#include <header.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include "header.h"
 
 
 Token token_get(FILE* in){
 	int i;
-	char temp[IDENT_STR_LEN];
-	char* strmem;
+	char temp[IDENT_MAX_STR_LEN];
 	char nextchar=getc(in);
 	Token restok;
 
@@ -16,53 +17,53 @@ Token token_get(FILE* in){
 
 	if(isalpha(nextchar)){
 		temp[0]=nextchar;
-		for(i=1;i<IDENT_STR_LEN;i++){
+		for(i=1;i<IDENT_MAX_STR_LEN;i++){
 			nextchar=getc(in);
-			if(isalphanum(nextchar)){
+			if(isalnum(nextchar)){
 				temp[i]=nextchar;
 			}else{
-				ungetc(in,nextchar);
+				ungetc(nextchar,in);
 				break;
 			}
 		}
-		temp[i]=NULL;
+		temp[i]='\0';
 		if(isupper(temp[0])){
-			restok.tag=VARIABLE;
+			restok.tag=TOK_VARIABLE;
 			restok.value.variable=sym_get(temp);
 		}else{
-			restok.tag=ATOM;
+			restok.tag=TOK_ATOM;
 			restok.value.atom=sym_get(temp);
 		}
 	}else if(isdigit(nextchar)){
 		temp[0]=nextchar;
-		for(i=1;i<IDENT_STR_LEN;i++){
+		for(i=1;i<IDENT_MAX_STR_LEN;i++){
 			nextchar=getc(in);
 			if(isdigit(nextchar)){
 				temp[i]=nextchar;
 			}else{
-				ungetc(in,nextchar);
+				ungetc(nextchar,in);
 				break;
 			}
 		}
-		temp[i]=NULL;
-		restok.tag=INTEGER;
+		temp[i]='\0';
+		restok.tag=TOK_INTEGER;
 		restok.value.integer=atoi(temp);
 	}else if(nextchar=='?'){
 		if((nextchar=getc(in))=='-'){
-			restok.tag=QUESTION;
+			restok.tag=TOK_QUESTION;
 		}else{
 			error("lexer: Can't tokenize.");
 		}
 	}else if(nextchar==':'){
 		if((nextchar=getc(in))=='-'){
-			restok.tag=IMPLICATION;
+			restok.tag=TOK_IMPLICATION;
 		}else{
 			error("lexer: Can't tokenize.");
 		}
 	}else if(nextchar==EOF){
-		restok.tag=ENDOFFILE;
+		restok.tag=TOK_ENDOFFILE;
 	}else{
-		restok.tag=ASCII;
+		restok.tag=TOK_ASCII;
 		restok.value.ascii=nextchar;
 	}
 
