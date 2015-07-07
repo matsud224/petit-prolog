@@ -1,0 +1,18 @@
+---petit-prolog BNF---
+
+<program> ::= <empty>
+		| <program> <clause> "."
+		| <program> <question> "."
+
+<structure-list> ::= <structure>
+			| <structure-list> , <structure>
+
+<question> ::= "?-" <structure-list>
+<clause> ::= <structure> ":-" <structure-list>
+
+<structure> ::= <atom> "(" <term-list> ")"
+			| <atom>
+<term> ::= <constant> | <variable> | <structure>
+<constant> ::= <atom> | <integer>
+<term-list> ::= <term>
+			| <term-list> <term>
