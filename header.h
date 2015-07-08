@@ -15,7 +15,8 @@ typedef SymbolTable* Atom;
 typedef SymbolTable* Variable;
 
 typedef enum{TOK_INTEGER,TOK_ATOM,TOK_VARIABLE,TOK_ASCII,TOK_QUESTION,TOK_IMPLICATION,TOK_ENDOFFILE} TokenTag;
-typedef enum{TERM_ATOM,TERM_INTEGER,TERM_VARIABLE,TERM_STRUCTURE} TermTag;
+typedef enum{TERM_INTEGER,TERM_VARIABLE,TERM_STRUCTURE} TermTag;
+typedef enum{PROG_CLAUSE,PROG_QUESTION} ProgramTag;
 
 typedef struct _token{
 	//QUESTION ?-
@@ -32,24 +33,10 @@ typedef struct _token{
 
 struct _structure;
 
-typedef struct _structure_list{
-	struct _structure_list* next;
-	struct _structure* structure;
-} StructureList;
-
-typedef struct _question{
-	StructureList structlist;
-} Question;
-
-typedef struct _clause{
-	struct _structure* head;
-	StructureList body;
-} Clause;
 
 typedef struct _term{
 	TermTag tag;
 	union {
-		Atom atom;
 		int integer;
 		Variable variable;
 		struct _structure* structure;
@@ -63,12 +50,26 @@ typedef struct _term_list{
 
 typedef struct _structure{
 	Atom functor;
-	TermList termlist;
+	TermList arguments;
 } Structure;
+
+typedef struct _structure_list{
+	struct _structure_list* next;
+	struct _structure structure;
+} StructureList;
+
+typedef struct _question{
+	StructureList body;
+} Question;
+
+typedef struct _clause{
+	struct _structure head;
+	StructureList body;
+} Clause;
 
 typedef struct _program{
 	struct _program* next;
-	enum{CLAUSE,QUESTION} tag;
+	ProgramTag tag;
 	union{
 		Clause clause;
 		Question question;
@@ -85,5 +86,12 @@ SymbolTable* sym_get(char* str);
 
 //lexer.c
 Token token_get(FILE* in);
+void token_unget(Token t);
 
+//parser.c
+Program parse_program(FILE* in);
+StructureList parse_structure_list(FILE* in);
+Structure parse_structure(FILE* in);
+Term parse_term(FILE* in);
+TermList parse_term_list(FILE* in);
 

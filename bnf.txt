@@ -9,10 +9,12 @@
 
 <question> ::= "?-" <structure-list>
 <clause> ::= <structure> ":-" <structure-list>
+            | <structure>
 
+%Atomは arity 0 のstructureと考える
 <structure> ::= <atom> "(" <term-list> ")"
 			| <atom>
-<term> ::= <constant> | <variable> | <structure>
-<constant> ::= <atom> | <integer>
+
+<term> ::= <integer> | <variable> | <structure>
 <term-list> ::= <term>
-			| <term-list> <term>
+			| <term-list> , <term>

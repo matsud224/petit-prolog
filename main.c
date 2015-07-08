@@ -3,36 +3,26 @@
 
 
 int main(int argc,char* argv[]){
-	Token gottoken;
+	Program p;
+	Program* current_line;
     while(1){
         printf(">");
-        while((gottoken=token_get(stdin)).tag!=TOK_ENDOFFILE){
-            switch(gottoken.tag){
-            case TOK_ASCII:
-                printf("ASCII:%c\n",gottoken.value.ascii);
-            break;
-            case TOK_ATOM:
-                printf("ATOM:%p\n",gottoken.value.atom);
-            break;
-            case TOK_ENDOFFILE:
-                printf("EOF\n");
-            break;
-            case TOK_IMPLICATION:
-                printf(":-\n");
-            break;
-            case TOK_INTEGER:
-                printf("INTEGER:%d\n",gottoken.value.integer);
-            break;
-            case TOK_QUESTION:
-                printf("?-\n");
-            break;
-            case TOK_VARIABLE:
-                printf("VARIABLE:%p\n",gottoken.value.variable);
-            break;
+        p=parse_program(stdin);
+        current_line=&p;
+        while(current_line->next!=NULL){
+            switch(current_line->next->tag){
+            case PROG_CLAUSE:
+                printf("CLAUSE: \n");
+                break;
+            case PROG_QUESTION:
+                printf("QUESTION: \n");
+                break;
             default:
-                printf("<UNKNOWN TOKEN>\n");
-            break;
+                printf("UNKNOWN: \n");
+                break;
             }
+
+            current_line=current_line->next;
         }
         printf("\n");
 	}

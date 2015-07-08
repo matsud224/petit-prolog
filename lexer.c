@@ -3,12 +3,21 @@
 #include <ctype.h>
 #include "header.h"
 
+#define SEEN_TOKEN_STACK_SIZE 20
+Token seen_token_stack[SEEN_TOKEN_STACK_SIZE]; //先読みした後に押し戻されたトークンをためておくスタック(溢れないように最大押し戻し回数分確保)
+int seen_token_count=0;
 
 Token token_get(FILE* in){
 	int i;
 	char temp[IDENT_MAX_STR_LEN];
-	char nextchar=getc(in);
+	int nextchar;
 	Token restok;
+
+	if(seen_token_count>0){
+        return seen_token_stack[--seen_token_count];
+	}
+
+	nextchar=getc(in);
 
 	//スペース読みとばし
 	while(isspace(nextchar)){
@@ -52,13 +61,13 @@ Token token_get(FILE* in){
 		if((nextchar=getc(in))=='-'){
 			restok.tag=TOK_QUESTION;
 		}else{
-			error("lexer: Can't tokenize.");
+			error("Can't tokenize.");
 		}
 	}else if(nextchar==':'){
 		if((nextchar=getc(in))=='-'){
 			restok.tag=TOK_IMPLICATION;
 		}else{
-			error("lexer: Can't tokenize.");
+			error("Can't tokenize.");
 		}
 	}else if(nextchar==EOF){
 		restok.tag=TOK_ENDOFFILE;
@@ -70,4 +79,9 @@ Token token_get(FILE* in){
 	return restok;
 }
 
-
+void token_unget(Token t){
+    if(seen_token_count==SEEN_TOKEN_STACK_SIZE){
+        error("internal stack overflow.");
+    }
+    seen_token_stack[seen_token_count++]=t;
+}
