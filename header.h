@@ -6,9 +6,17 @@
 #define IDENT_MAX_STR_LEN 256
 
 
+struct _clause;
+
+typedef struct _clauselist{
+    struct _clauselist* next;
+    struct _clause* clause;
+} ClauseList;
+
 typedef struct _symtable{
 	struct _symtable* next;
 	char* name;
+	ClauseList clause_list;
 } SymbolTable;
 
 typedef SymbolTable* Atom;
@@ -63,6 +71,7 @@ typedef struct _question{
 } Question;
 
 typedef struct _clause{
+	int arity; //登録段階で代入
 	struct _structure head;
 	StructureList body;
 } Clause;
@@ -85,13 +94,18 @@ extern SymbolTable symtable[SYMTABLE_LEN];
 SymbolTable* sym_get(char* str);
 
 //lexer.c
-Token token_get(FILE* in);
+Token token_get(FILE* fp);
 void token_unget(Token t);
 
 //parser.c
-Program parse_program(FILE* in);
-StructureList parse_structure_list(FILE* in);
-Structure parse_structure(FILE* in);
-Term parse_term(FILE* in);
-TermList parse_term_list(FILE* in);
+Program parse_program(FILE* fp);
+StructureList parse_structure_list(FILE* fp);
+Structure parse_structure(FILE* fp);
+Term parse_term(FILE* fp);
+TermList parse_term_list(FILE* fp);
+
+//interpret.c
+void interpret(FILE* fp);
+void interpret_clause(Clause clause);
+void interpret_question(Question question);
 

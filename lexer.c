@@ -7,7 +7,7 @@
 Token seen_token_stack[SEEN_TOKEN_STACK_SIZE]; //先読みした後に押し戻されたトークンをためておくスタック(溢れないように最大押し戻し回数分確保)
 int seen_token_count=0;
 
-Token token_get(FILE* in){
+Token token_get(FILE* fp){
 	int i;
 	char temp[IDENT_MAX_STR_LEN];
 	int nextchar;
@@ -17,21 +17,21 @@ Token token_get(FILE* in){
         return seen_token_stack[--seen_token_count];
 	}
 
-	nextchar=getc(in);
+	nextchar=getc(fp);
 
 	//スペース読みとばし
 	while(isspace(nextchar)){
-		nextchar=getc(in);
+		nextchar=getc(fp);
 	}
 
 	if(isalpha(nextchar)){
 		temp[0]=nextchar;
 		for(i=1;i<IDENT_MAX_STR_LEN;i++){
-			nextchar=getc(in);
+			nextchar=getc(fp);
 			if(isalnum(nextchar)){
 				temp[i]=nextchar;
 			}else{
-				ungetc(nextchar,in);
+				ungetc(nextchar,fp);
 				break;
 			}
 		}
@@ -46,11 +46,11 @@ Token token_get(FILE* in){
 	}else if(isdigit(nextchar)){
 		temp[0]=nextchar;
 		for(i=1;i<IDENT_MAX_STR_LEN;i++){
-			nextchar=getc(in);
+			nextchar=getc(fp);
 			if(isdigit(nextchar)){
 				temp[i]=nextchar;
 			}else{
-				ungetc(nextchar,in);
+				ungetc(nextchar,fp);
 				break;
 			}
 		}
@@ -58,13 +58,13 @@ Token token_get(FILE* in){
 		restok.tag=TOK_INTEGER;
 		restok.value.integer=atoi(temp);
 	}else if(nextchar=='?'){
-		if((nextchar=getc(in))=='-'){
+		if((nextchar=getc(fp))=='-'){
 			restok.tag=TOK_QUESTION;
 		}else{
 			error("Can't tokenize.");
 		}
 	}else if(nextchar==':'){
-		if((nextchar=getc(in))=='-'){
+		if((nextchar=getc(fp))=='-'){
 			restok.tag=TOK_IMPLICATION;
 		}else{
 			error("Can't tokenize.");

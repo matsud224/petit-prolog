@@ -3,7 +3,7 @@
 #include "header.h"
 
 
-SymbolTable symtable[SYMTABLE_LEN];
+SymbolTable symtable[SYMTABLE_LEN]={{NULL,NULL,{NULL,NULL}}};
 
 int sym_hash(char* str){
 	char* curr=str;
