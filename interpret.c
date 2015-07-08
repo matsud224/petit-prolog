@@ -2,6 +2,8 @@
 #include <malloc.h>
 #include "header.h"
 
+
+
 void interpret(FILE* fp){
     Program p = parse_program(fp);
     Program* ptr=&p;
@@ -41,6 +43,35 @@ void interpret_clause(Clause clause){
 	*(cl_ptr->next->clause)=clause;
 }
 
+//Boxのメモリを確保し、それへのポインタを返します
+Box* box_get(){
+	Box* b=malloc(sizeof(Box));
+	b->failure=NULL;
+	b->success=NULL;
+	b->is_begin=0;
+	b->is_end=0;
+	b->selected_clause=NULL;
+}
+
 void interpret_question(Question question){
+	//箱の準備
+	Box* beginbox=box_get(); beginbox->is_begin=1;
+	Box* endbox=box_get(); endbox->is_end=1;
+	Box* prev=beginbox;
+	Box* current;
+
+    StructureList* ptr;
+    for(ptr=&(question.body);ptr->next!=NULL;ptr=ptr->next){
+		current=box_get();
+		prev->success=current;
+		current->failure=prev;
+		prev=current;
+    }
+	endbox->failure=prev;
+
+	execute(beginbox->success);
+}
+
+void execute(Box* current){
 
 }

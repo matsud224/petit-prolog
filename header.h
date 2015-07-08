@@ -85,6 +85,27 @@ typedef struct _program{
 	} item;
 } Program;
 
+typedef struct _vartable{
+	struct _vartable* next;
+	Variable variable;
+	Term value;
+} VariableTable;
+
+typedef struct _environment{
+	struct _environment* next; //末端がより新しい変数テーブル/スタックとして扱う
+	VariableTable variable_table;
+} Environment;
+
+typedef struct _box{
+	struct _box* success;
+	struct _box* failure;
+	Environment environment;
+	ClauseList* selected_clause;
+	Structure structure;
+	char is_begin:1;
+	char is_end:1;
+} Box;
+
 
 //etc.c
 void error(char* msg);
@@ -108,4 +129,5 @@ TermList parse_term_list(FILE* fp);
 void interpret(FILE* fp);
 void interpret_clause(Clause clause);
 void interpret_question(Question question);
+void execute(Box* current);
 
