@@ -12,9 +12,11 @@ void interpret(FILE* fp){
     while(ptr->next!=NULL){
         switch(ptr->next->tag){
         case PROG_CLAUSE:
+        	printf("-interpret clause-\n");
 			interpret_clause(ptr->next->item.clause);
 			break;
 		case PROG_QUESTION:
+			printf("-interpret question-\n");
 			interpret_question(ptr->next->item.question);
 			break;
 		}
@@ -59,22 +61,61 @@ void interpret_question(Question question){
     StructureList* ptr;
     for(ptr=&(question.body);ptr->next!=NULL;ptr=ptr->next){
 		current=box_get();
+		current->vt_stack.next=NULL;
+		current->structure=ptr->next->structure;
+		current->selected_clause=&(current->structure.functor->clause_list);
 		prev->success=current;
 		current->failure=prev;
 		prev=current;
     }
+    prev->success=endbox;
 	endbox->failure=prev;
 
+	printf("-start-\n");
 	execute(beginbox->success);
 }
 
 void execute(Box* current){
 	while(!(current->is_end)){
 		next_clause(current);
+		printf("-clause selected-\n");
 		if(current->is_failed){
+			printf("-failed-\n");
+			vtstack_pop(&(current->vt_stack));
 			current=current->failure;
 		}else{
+			if(current->selected_clause->clause->body.next!=NULL){
+				printf("-subgoals-\n");
+				//サブゴール有り
+                //箱の準備
+				Box* beginbox=current;
+				Box* endbox=current->success;
+				Box* prev=beginbox;
+				Box* curr_box;
+
+				StructureList* ptr;
+				for(ptr=&(current->selected_clause->clause->body);ptr->next!=NULL;ptr=ptr->next){
+					curr_box=box_get();
+					curr_box->vt_stack.next=NULL;
+					curr_box->structure=ptr->next->structure;
+					curr_box->selected_clause=&(curr_box->structure.functor->clause_list);
+					prev->success=curr_box;
+					curr_box->failure=prev;
+					prev=curr_box;
+				}
+				prev->success=endbox;
+				endbox->failure=prev;
+
+				vtstack_push(&(beginbox->success->vt_stack),vartable_from_clause(*(current->selected_clause->clause)));
+				structure_unify(*vtstack_toptable(current->vt_stack),current->structure,*vtstack_toptable(beginbox->success->vt_stack),current->selected_clause->clause->head);
+			}else{
+				printf("-no subgoals-\n");
+				vtstack_duplicate(&(current->vt_stack));
+				current->success->vt_stack=current->vt_stack;
+			}
+
 			current=current->success;
+
 		}
 
 		if(current->is_begin){
@@ -86,6 +127,7 @@ void execute(Box* current){
 	printf("\nyes.\n");
 }
 
+
 void next_clause(Box* box){
 	ClauseList* cl_ptr;
 	int arity=structure_arity(box->structure);
@@ -95,11 +137,12 @@ void next_clause(Box* box){
 
     for(cl_ptr=box->selected_clause;cl_ptr->next!=NULL;cl_ptr=cl_ptr->next){
 		if(arity==cl_ptr->next->clause->arity){
-			VariableTable vt_caller=vartable_from_clause(*(cl_ptr->next->clause));
+			VariableTable vt_caller=*vtstack_toptable(box->vt_stack);
 			VariableTable vt_callee=vartable_from_structure(box->structure);
 
 			if(structure_unify_test(vt_caller,cl_ptr->next->clause->head,vt_callee,box->structure)){
 				box->selected_clause=cl_ptr->next;
+
 				return;
 			}
 		}
@@ -158,14 +201,6 @@ VariableTable vartable_from_structure(Structure s){
 void structure_unify(VariableTable v1,Structure s1,VariableTable v2,Structure s2){
 	TermList* s1_ptr;
 	TermList* s2_ptr;
-
-	if(s1.functor!=s2.functor){
-		error("unification error.");
-	}
-
-	if(structure_arity(s1)!=structure_arity(s2)){
-		error("unification error.");
-	}
 
 	s1_ptr=&(s1.arguments); s2_ptr=&(s2.arguments);
 

@@ -112,11 +112,13 @@ typedef struct _box{
 //etc.c
 void error(char* msg);
 void vartable_add(VariableTable *vl,Variable var);
+VariableTable vartable_copy(VariableTable vl);
 void vartable_concat(VariableTable *dest,VariableTable src);
 void vartable_unique(VariableTable vl);
 Term* vartable_find(VariableTable vl,Variable var);
 void vtstack_pushnew(VTStack *vts);
 void vtstack_push(VTStack *vts,VariableTable vartable);
+void vtstack_duplicate(VTStack *vts);
 void vtstack_pop(VTStack *vts);
 VariableTable* vtstack_toptable(VTStack vts);
 int structure_arity(Structure s);
@@ -136,7 +138,8 @@ Structure parse_structure(FILE* fp);
 Term parse_term(FILE* fp);
 TermList parse_term_list(FILE* fp);
 
-//interpret.cint structure_arity(Structure s);
+//interpret.c
+int structure_arity(Structure s);
 void interpret(FILE* fp);
 void interpret_clause(Clause clause);
 void interpret_question(Question question);

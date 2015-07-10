@@ -21,6 +21,20 @@ void vartable_add(VariableTable *vl,Variable var){
 	return;
 }
 
+VariableTable vartable_copy(VariableTable vl){
+	VariableTable newtable; newtable.next=NULL;
+	VariableTable* ptr=&vl;
+	VariableTable* n_ptr=&newtable;
+	while(ptr->next!=NULL){
+		n_ptr->next=malloc(sizeof(VariableTable));
+		n_ptr->next->next=NULL;
+		ptr=ptr->next;
+		n_ptr=n_ptr->next;
+	}
+
+	return newtable;
+}
+
 void vartable_concat(VariableTable* dest,VariableTable src){
 	VariableTable* ptr=dest;
 	while(ptr->next!=NULL){
@@ -40,7 +54,6 @@ void vartable_unique(VariableTable vl){
 			if(subptr->next->variable==ptr->next->variable){
 				temp=subptr->next;
 				subptr->next=subptr->next->next;
-				free(temp);
 			}
 
 			subptr=subptr->next;
@@ -84,6 +97,12 @@ void vtstack_push(VTStack *vts,VariableTable vartable){
 	return;
 }
 
+void vtstack_duplicate(VTStack *vts){
+	vtstack_push(vts,vartable_copy(*vtstack_toptable(*vts)));
+
+	return;
+}
+
 void vtstack_pop(VTStack *vts){
 	VTStack* ptr=vts;
 	VTStack* prev=NULL;
@@ -92,7 +111,7 @@ void vtstack_pop(VTStack *vts){
 		ptr=ptr->next;
 	}
 	if(prev!=NULL){
-		free(prev->next);
+		prev->next=NULL;
 	}
 
 	return;
