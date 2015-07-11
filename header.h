@@ -111,6 +111,7 @@ typedef struct _box{
 
 //etc.c
 void error(char* msg);
+void vartable_show(VariableTable v1);
 void vartable_add(VariableTable *vl,Variable var);
 VariableTable vartable_copy(VariableTable vl);
 void vartable_concat(VariableTable *dest,VariableTable src);
@@ -120,6 +121,7 @@ void vtstack_pushnew(VTStack *vts);
 void vtstack_push(VTStack *vts,VariableTable vartable);
 void vtstack_duplicate(VTStack *vts);
 void vtstack_pop(VTStack *vts);
+int vtstack_size(VTStack vts);
 VariableTable* vtstack_toptable(VTStack vts);
 int structure_arity(Structure s);
 
@@ -144,14 +146,11 @@ void interpret(FILE* fp);
 void interpret_clause(Clause clause);
 void interpret_question(Question question);
 void execute(Box* current);
-void next_clause(Box* box);
+void next_clause(Box* box,VariableTable* vt_caller_ret,VariableTable* vt_callee_ret);
 VariableTable vartable_from_clause(Clause c);
 VariableTable vartable_from_question(Question q);
 VariableTable vartable_from_structure(Structure s);
 
-//*_unify関数では、副作用を伴う、未束縛変数の束縛等を行う。数値、構造同士の比較は*_unify_test関数で事前に済ませていると仮定。
-void structure_unify(VariableTable v1,Structure s1,VariableTable v2,Structure s2);
-void term_unify(VariableTable vl_caller,Term* caller,VariableTable vl_callee,Term* callee);
-//*_unify_test関数では、副作用の伴わない、数値同士、構造同士の比較を行う。
-int structure_unify_test(VariableTable v1,Structure s1,VariableTable v2,Structure s2);
-int term_unify_test(VariableTable vl_caller,Term caller,VariableTable vl_callee,Term callee);
+//ユニフィケーションが成功したら1,失敗なら0を返す。副作用を伴うため、ユニフィケーションできるかどうか調べるだけなら、vartable_copyでコピーを取るべし。
+int structure_unify(VariableTable v1,Structure s1,VariableTable v2,Structure s2);
+int term_unify(VariableTable vl_caller,Term* caller,VariableTable vl_callee,Term* callee);
