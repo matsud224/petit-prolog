@@ -108,19 +108,26 @@ void interpret_question(Question question){
 
 void execute(Box* current){
 	VariableTable vt_caller,vt_callee;
-
+retry:
 	while(!(current->is_end)){
 		vt_caller.next=NULL; vt_callee.next=NULL;
 
-		vtstack_duplicate(&(current->vt_stack));
+		//vtstack_duplicate(&(current->vt_stack));
 
 		//printf("-execute-\n");
 		next_clause(current,&vt_caller,&vt_callee);
+		//vartable_show(*vtstack_toptable(current->vt_stack));
 		//printf("-clause selected-\n");
 		if(current->is_failed){
 			//printf("-failed-\n");
-			vtstack_pop(&(current->vt_stack));
+			//vtstack_pop(&(current->vt_stack));
+
+			//リセット
+			current->is_failed=0;
+			current->selected_clause=&(current->structure.functor->clause_list);
 			current=current->failure;
+
+			vtstack_pop(&(current->vt_stack));
 
 			if(current->is_begin){
 				printf("\nno.\n");
@@ -137,6 +144,7 @@ void execute(Box* current){
 				Box* curr_box;
 				VTStack stack; stack.next=NULL;
 				vtstack_push(&stack,vt_callee);
+				vtstack_boundcheck_top(stack);
 
 				StructureList* ptr;
 				for(ptr=&(current->selected_clause->clause->body);ptr->next!=NULL;ptr=ptr->next){
@@ -156,14 +164,44 @@ void execute(Box* current){
 
 			}
 
-			*vtstack_toptable(current->vt_stack)=vt_caller;
+			vtstack_push(&(current->vt_stack),vt_caller);
+			vtstack_boundcheck_top(current->vt_stack);
+
 			current=current->success;
 		}
+
+
 	}
 
 	//解を発見
-	vartable_show(*vtstack_toptable(current->vt_stack));
-	printf("\nyes.\n");
+	if(vtstack_toptable(current->vt_stack)->next!=NULL){
+		//変数テーブルに１つ以上あったら
+		vartable_show(*vtstack_toptable(current->vt_stack));
+		printf("\n this? (y/n) : ");
+		char ans='\0';
+		while(ans!='y' && ans!='n'){
+			ans=getc(stdin);
+		}
+		if(ans=='y'){
+			printf("\nyes.\n"); return;
+		}else{
+
+			current=current->failure;
+
+			vtstack_pop(&(current->vt_stack));
+
+			//printf("size: %d .",vtstack_size(current->vt_stack));
+			//vartable_show(current->vt_stack.next->next->vartable);
+			//vartable_show(current->vt_stack.next->vartable);
+			if(current->is_begin){
+				printf("\nno.\n");
+				return;
+			}
+			goto retry;
+		}
+	}else{
+		printf("\nyes.\n");
+	}
 }
 
 
@@ -186,6 +224,7 @@ void next_clause(Box* box,VariableTable* vt_caller_ret,VariableTable* vt_callee_
 			if(structure_unify(vt_caller,box->structure,vt_callee,cl_ptr->next->clause->head)){
 				box->selected_clause=cl_ptr->next;
 				//printf("-unification success-\n");
+
 				*vt_caller_ret=vt_caller;
 				*vt_callee_ret=vt_callee;
 				return;
@@ -237,6 +276,7 @@ VariableTable vartable_from_structure(Structure s){
 		if(tl_ptr->next->term.tag==TERM_STRUCTURE){
 			vartable_concat(&vl,vartable_from_structure(*(tl_ptr->next->term.value.structure)));
 		}else if(tl_ptr->next->term.tag==TERM_VARIABLE){
+			tl_ptr->next->term.ref_bound=0;
 			vartable_add(&vl,tl_ptr->next->term.value.variable);
 		}
 
@@ -270,6 +310,7 @@ int structure_unify(VariableTable v1,Structure s1,VariableTable v2,Structure s2)
 			//printf("-term unify failed-\n");
 			return 0;
 		}
+
 		//printf("-term unify success-\n");
 		s1_ptr=s1_ptr->next;
 		s2_ptr=s2_ptr->next;

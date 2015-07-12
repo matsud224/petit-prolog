@@ -41,7 +41,6 @@ typedef struct _token{
 
 struct _structure;
 
-
 typedef struct _term{
 	TermTag tag;
 	union {
@@ -50,6 +49,7 @@ typedef struct _term{
 		struct _structure* structure;
 		struct _term* pointer;
 	} value;
+	int ref_bound;
 } Term;
 
 typedef struct _term_list{
@@ -112,10 +112,13 @@ typedef struct _box{
 //etc.c
 void error(char* msg);
 void vartable_show(VariableTable v1);
+void term_show(Term t);
+void structure_show(Structure s);
 void vartable_add(VariableTable *vl,Variable var);
 VariableTable vartable_copy(VariableTable vl);
 void vartable_concat(VariableTable *dest,VariableTable src);
 void vartable_unique(VariableTable vl);
+void vartable_shortcut(VariableTable* vt);
 Term* vartable_find(VariableTable vl,Variable var);
 void vtstack_pushnew(VTStack *vts);
 void vtstack_push(VTStack *vts,VariableTable vartable);
@@ -123,6 +126,7 @@ void vtstack_duplicate(VTStack *vts);
 void vtstack_pop(VTStack *vts);
 int vtstack_size(VTStack vts);
 VariableTable* vtstack_toptable(VTStack vts);
+void vtstack_boundcheck_top(VTStack vts);
 int structure_arity(Structure s);
 
 //symbol.c
