@@ -128,6 +128,7 @@ int vtstack_size(VTStack vts);
 VariableTable* vtstack_toptable(VTStack vts);
 void vtstack_boundcheck_top(VTStack vts);
 int structure_arity(Structure s);
+void vartable_boundcheck(VariableTable vt);
 
 //symbol.c
 extern SymbolTable symtable[SYMTABLE_LEN];

@@ -112,7 +112,6 @@ retry:
 	while(!(current->is_end)){
 		vt_caller.next=NULL; vt_callee.next=NULL;
 
-		//vtstack_duplicate(&(current->vt_stack));
 
 		//printf("-execute-\n");
 		next_clause(current,&vt_caller,&vt_callee);
@@ -207,6 +206,7 @@ retry:
 
 void next_clause(Box* box,VariableTable* vt_caller_ret,VariableTable* vt_callee_ret){
 	ClauseList* cl_ptr;
+
 	int arity=structure_arity(box->structure);
 
 	//すでに失敗しているとき
@@ -217,18 +217,42 @@ void next_clause(Box* box,VariableTable* vt_caller_ret,VariableTable* vt_callee_
     for(cl_ptr=box->selected_clause;cl_ptr->next!=NULL;cl_ptr=cl_ptr->next){
 		//printf("-try-\n");
 		if(arity==cl_ptr->next->clause->arity){
-
+			//printf("unify start---");structure_show(box->structure);printf(" and ");structure_show(cl_ptr->next->clause->head);printf("\n");
 			VariableTable vt_caller=vartable_copy(*vtstack_toptable(box->vt_stack));
 			VariableTable vt_callee=vartable_from_clause(*(cl_ptr->next->clause));
 			//printf("-unification start-\n");
+			//vartable_show(vt_caller);
+			//vartable_show(vt_callee);
+
+			vartable_boundcheck(vt_caller);
+
 			if(structure_unify(vt_caller,box->structure,vt_callee,cl_ptr->next->clause->head)){
+				//printf("success.\n");
 				box->selected_clause=cl_ptr->next;
 				//printf("-unification success-\n");
 
 				*vt_caller_ret=vt_caller;
 				*vt_callee_ret=vt_callee;
+
+				//vartable_show(*vtstack_toptable(box->vt_stack));
+				//printf("^^^^^^^^^^^^^^^^^^^^");
+				//vartable_show(vt_caller);
 				return;
-			}
+			}/*else{
+				VariableTable* ptr1;
+				for(ptr1=&vt_caller;ptr1->next!=NULL;ptr1=ptr1->next){
+					if(ptr1->next->value.tag==TERM_POINTER && ptr1->next->value.value.pointer->tag!=TERM_UNBOUND && ptr1->next->value.ref_bound==0){
+						printf("\n\n***unbind***\n\n");
+						ptr1->next->value.value.pointer->tag=TERM_UNBOUND;
+					}
+				}
+
+				//vartable_show(*vtstack_toptable(box->vt_stack));
+				printf("^^^^^^^^^^^^^^^^^^^^");
+				vartable_show(vt_caller);
+				vartable_show(vt_callee);
+			}*/
+			//printf("fail.\n");
 		}
     }
 
@@ -333,8 +357,12 @@ int term_unify(VariableTable vl_caller,Term* caller,VariableTable vl_callee,Term
 	}else if(callee->tag==TERM_VARIABLE){
 		return term_unify(vl_caller,caller,vl_callee,vartable_find(vl_callee,callee->value.variable));
 	}else if(caller->tag==TERM_UNBOUND && callee->tag==TERM_UNBOUND){
+		Term* sharedterm=malloc(sizeof(Term));
+		sharedterm->tag=TERM_UNBOUND;
 		callee->tag=TERM_POINTER;
-		callee->value.pointer=caller;
+		callee->value.pointer=sharedterm;
+		caller->tag=TERM_POINTER;
+		caller->value.pointer=sharedterm;
 		return 1;
 	}else if(caller->tag==TERM_UNBOUND){
 		*caller=*callee;

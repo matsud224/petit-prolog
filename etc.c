@@ -75,9 +75,7 @@ void vartable_unique(VariableTable vl){
 		subptr=ptr->next;
 		while(subptr->next!=NULL){
 			if(subptr->next->variable==ptr->next->variable){
-				temp=subptr->next;
 				subptr->next=subptr->next->next;
-				subptr=temp;
 			}else{
 				subptr=subptr->next;
 			}
@@ -96,6 +94,7 @@ void vartable_show(VariableTable v1){
 	while(ptr->next!=NULL){
 		printf("%s = ",ptr->next->variable->name);
 		term_show(ptr->next->value);
+		//printf("(%d)",ptr->next->value.ref_bound);
 		printf("\n");
 
 		ptr=ptr->next;
@@ -111,7 +110,7 @@ void term_show(Term t){
 		printf("%d",t.value.integer);
 		break;
 	case TERM_POINTER:
-		term_show(*t.value.pointer);
+		/*printf("*");*/ term_show(*t.value.pointer);
 		break;
 	case TERM_STRUCTURE:
 		structure_show(*(t.value.structure));
@@ -241,14 +240,21 @@ void vtstack_boundcheck_top(VTStack vts){
 	while(ptr->next!=NULL){
 		ptr=ptr->next;
 	}
+	vartable_boundcheck(ptr->vartable);
 
-	tptr=&(ptr->vartable);
+	return;
+}
+
+void vartable_boundcheck(VariableTable vt){
+	VariableTable* tptr;
+
+	tptr=&vt;
 	while(tptr->next!=NULL){
-		if(tptr->value.tag==TERM_POINTER){
-			if(tptr->value.value.pointer->tag==TERM_UNBOUND){
-				tptr->value.ref_bound=0;
+		if(tptr->next->value.tag==TERM_POINTER){
+			if(tptr->next->value.value.pointer->tag==TERM_UNBOUND){
+				tptr->next->value.ref_bound=0;
 			}else{
-				tptr->value.ref_bound=1;
+				tptr->next->value.ref_bound=1;
 			}
 		}
 		tptr=tptr->next;
