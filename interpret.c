@@ -219,9 +219,9 @@ void next_clause(Box* box,VariableTable* vt_caller_ret,VariableTable* vt_callee_
 			//printf("unify start---");structure_show(box->structure);printf(" and ");structure_show(cl_ptr->next->clause->head);printf("\n");
 			VariableTable vt_caller=vartable_copy(*vtstack_toptable(box->vt_stack));
 			VariableTable vt_callee=vartable_from_clause(*(cl_ptr->next->clause));
-			//printf("-unification start-\n");
-			//vartable_show(vt_caller);
-			//vartable_show(vt_callee);
+			printf("-unification start-\n");
+			vartable_show(vt_caller);
+			vartable_show(vt_callee);
 
 			vartable_boundcheck(vt_caller);
 
@@ -233,9 +233,9 @@ void next_clause(Box* box,VariableTable* vt_caller_ret,VariableTable* vt_callee_
 				*vt_caller_ret=vt_caller;
 				*vt_callee_ret=vt_callee;
 
-				//printf("^^^^^^^^^^^^^^^^^^^^");
-				//vartable_show(vt_caller);
-				//vartable_show(vt_callee);
+				printf("^^^^^^^^^^^^^^^^^^^^");
+				vartable_show(vt_caller);
+				vartable_show(vt_callee);
 				return;
 			}/*else{
 				VariableTable* ptr1;
@@ -251,9 +251,9 @@ void next_clause(Box* box,VariableTable* vt_caller_ret,VariableTable* vt_callee_
 			}*/
 			//printf("fail.\n");
 
-			//printf("^^^^^^^^^^^^^^^^^^^^");
-			//vartable_show(vt_caller);
-			//vartable_show(vt_callee);
+			printf("^^^^^^^^^^^^^^^^^^^^");
+			vartable_show(vt_caller);
+			vartable_show(vt_callee);
 		}
     }
 
@@ -370,17 +370,14 @@ Structure* structure_to_portable(Structure* s,VariableTable vt){
 
 Term term_to_portable(Term* t,VariableTable vt){
 	Term result;
-	VariableTable vt_t;
 	switch(t->tag){
 	case TERM_INTEGER:
 	case TERM_POINTER:
 		return *t;
 	case TERM_STRUCTURE:
-		vt_t=vartable_from_structure(*(t->value.structure));
 		result.tag=TERM_STRUCTURE;
 		result.value.structure=structure_to_portable(t->value.structure,vt);
 		return result;
-		break;
 	case TERM_VARIABLE:
 		result.tag=TERM_POINTER;
 		result.value.pointer=vartable_find(vt,t->value.variable);
@@ -399,10 +396,20 @@ int term_unify(VariableTable vl_caller,Term* caller,VariableTable vl_callee,Term
 	//printf("-tag %d %d -",caller->tag,callee->tag);
 	if(caller->tag==TERM_INTEGER && callee->tag==TERM_INTEGER){
 		return caller->value.integer==callee->value.integer;
+
 	}else if(caller->tag==TERM_STRUCTURE && callee->tag==TERM_STRUCTURE){
 		return structure_unify(vl_caller,*(caller->value.structure),vl_callee,*(callee->value.structure));
+
+	}else if(caller->tag==TERM_POINTER && callee->tag==TERM_POINTER){
+		return term_unify(vl_caller,caller->value.pointer,vl_callee,callee->value.pointer);
+
 	}else if(caller->tag==TERM_VARIABLE && callee->tag==TERM_VARIABLE){
 		return term_unify(vl_caller,vartable_find(vl_caller,caller->value.variable),vl_callee,vartable_find(vl_callee,callee->value.variable));
+
+	}else if(caller->tag==TERM_POINTER){
+		return term_unify(vl_caller,caller->value.pointer,vl_callee,callee);
+	}else if(callee->tag==TERM_POINTER){
+		return term_unify(vl_caller,caller,vl_callee,callee->value.pointer);
 	}else if(caller->tag==TERM_VARIABLE){
 		return term_unify(vl_caller,vartable_find(vl_caller,caller->value.variable),vl_callee,callee);
 	}else if(callee->tag==TERM_VARIABLE){
@@ -417,12 +424,6 @@ int term_unify(VariableTable vl_caller,Term* caller,VariableTable vl_callee,Term
 	}else if(callee->tag==TERM_UNBOUND){
 		*callee=term_to_portable(caller,vl_caller);
 		return 1;
-	}else if(caller->tag==TERM_POINTER && callee->tag==TERM_POINTER){
-		return term_unify(vl_caller,caller->value.pointer,vl_callee,callee->value.pointer);
-	}else if(caller->tag==TERM_POINTER){
-		return term_unify(vl_caller,caller->value.pointer,vl_callee,callee);
-	}else if(callee->tag==TERM_POINTER){
-		return term_unify(vl_caller,caller,vl_callee,callee->value.pointer);
 	}
 
 	return 0;

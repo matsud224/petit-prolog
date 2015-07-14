@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <malloc.h>
 #include "header.h"
 
@@ -126,8 +127,30 @@ void term_show(Term t){
 	}
 }
 
+void list_show(Structure s){
+	//functorがドットであると仮定
+	Term second_arg=s.arguments.next->next->term;
+	term_show(s.arguments.next->term);
+	if(second_arg.tag==TERM_STRUCTURE && strcmp(second_arg.value.structure->functor->name,".")==0){
+		//cdrもリスト
+		printf(","); list_show(*(second_arg.value.structure));
+	}else if(second_arg.tag==TERM_STRUCTURE && strcmp(second_arg.value.structure->functor->name,"[]")==0 && structure_arity(*(second_arg.value.structure))==0){
+		// [] が来た　→　リスト終端
+		return;
+	}else{
+		printf("|"); term_show(second_arg);
+	}
+
+}
+
 void structure_show(Structure s){
 	TermList* ptr=&(s.arguments);
+
+	if(strcmp(s.functor->name,".")==0){
+		//リスト
+		printf("["); list_show(s);printf("]");
+		return;
+	}
 
 	printf("%s",s.functor->name);
 	if(ptr->next==NULL){
