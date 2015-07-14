@@ -320,12 +320,12 @@ int structure_unify(VariableTable v1,Structure s1,VariableTable v2,Structure s2)
 	TermList* s2_ptr;
 
 	if(s1.functor!=s2.functor){
-		printf("funtor mismatch.(%s,%s)\n",s1.functor->name,s2.functor->name);
+		//printf("funtor mismatch.(%s,%s)\n",s1.functor->name,s2.functor->name);
 		return 0;
 	}
 
 	if(structure_arity(s1)!=structure_arity(s2)){
-		printf("arity mismatch.(%d,%d)\n",structure_arity(s1),structure_arity(s2));
+		//printf("arity mismatch.(%d,%d)\n",structure_arity(s1),structure_arity(s2));
 		return 0;
 	}
 
@@ -335,7 +335,7 @@ int structure_unify(VariableTable v1,Structure s1,VariableTable v2,Structure s2)
 
 		if(!term_unify(v1,&(s1_ptr->next->term),v2,&(s2_ptr->next->term))){
 			//printf("-term unify failed-\n");
-			printf("argument mismatch.\n");
+			//printf("argument mismatch.\n");
 			return 0;
 		}
 
@@ -345,6 +345,53 @@ int structure_unify(VariableTable v1,Structure s1,VariableTable v2,Structure s2)
 	}
 
 	return 1;
+}
+
+Structure* structure_to_portable(Structure* s,VariableTable vt){
+	Structure* result=malloc(sizeof(Structure));
+	TermList* ptr;
+	TermList* res_ptr;
+
+	result->functor=s->functor;
+	result->arguments.next=NULL;
+
+	ptr=&(s->arguments);
+	res_ptr=&(result->arguments);
+	while(ptr->next!=NULL){
+		res_ptr->next=malloc(sizeof(TermList));
+		res_ptr->next->term=term_to_portable(&(ptr->next->term),vt);
+
+		ptr=ptr->next;
+		res_ptr=res_ptr->next;
+	}
+	res_ptr->next=NULL;
+	return result;
+}
+
+Term term_to_portable(Term* t,VariableTable vt){
+	Term result;
+	VariableTable vt_t;
+	switch(t->tag){
+	case TERM_INTEGER:
+	case TERM_POINTER:
+		return *t;
+	case TERM_STRUCTURE:
+		vt_t=vartable_from_structure(*(t->value.structure));
+		result.tag=TERM_STRUCTURE;
+		result.value.structure=structure_to_portable(t->value.structure,vt);
+		return result;
+		break;
+	case TERM_VARIABLE:
+		result.tag=TERM_POINTER;
+		result.value.pointer=vartable_find(vt,t->value.variable);
+		return result;
+	case TERM_UNBOUND:
+		error("unexpected case.");
+		break;
+	default:
+		error("invalid term.");
+		break;
+	}
 }
 
 int term_unify(VariableTable vl_caller,Term* caller,VariableTable vl_callee,Term* callee){
@@ -361,18 +408,14 @@ int term_unify(VariableTable vl_caller,Term* caller,VariableTable vl_callee,Term
 	}else if(callee->tag==TERM_VARIABLE){
 		return term_unify(vl_caller,caller,vl_callee,vartable_find(vl_callee,callee->value.variable));
 	}else if(caller->tag==TERM_UNBOUND && callee->tag==TERM_UNBOUND){
-		Term* sharedterm=malloc(sizeof(Term));
-		sharedterm->tag=TERM_UNBOUND;
 		callee->tag=TERM_POINTER;
-		callee->value.pointer=sharedterm;
-		caller->tag=TERM_POINTER;
-		caller->value.pointer=sharedterm;
+		callee->value.pointer=caller;
 		return 1;
 	}else if(caller->tag==TERM_UNBOUND){
-		*caller=*callee;
+		*caller=term_to_portable(callee,vl_callee);
 		return 1;
 	}else if(callee->tag==TERM_UNBOUND){
-		*callee=*caller;
+		*callee=term_to_portable(caller,vl_caller);
 		return 1;
 	}else if(caller->tag==TERM_POINTER && callee->tag==TERM_POINTER){
 		return term_unify(vl_caller,caller->value.pointer,vl_callee,callee->value.pointer);

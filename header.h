@@ -157,6 +157,8 @@ void next_clause(Box* box,VariableTable* vt_caller_ret,VariableTable* vt_callee_
 VariableTable vartable_from_clause(Clause c);
 VariableTable vartable_from_question(Question q);
 VariableTable vartable_from_structure(Structure s);
+Term term_to_portable(Term* t,VariableTable vt);
+Structure* structure_to_portable(Structure* s,VariableTable vt);
 
 //ユニフィケーションが成功したら1,失敗なら0を返す。副作用を伴うため、ユニフィケーションできるかどうか調べるだけなら、vartable_copyでコピーを取るべし。
 int structure_unify(VariableTable v1,Structure s1,VariableTable v2,Structure s2);

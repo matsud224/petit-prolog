@@ -34,7 +34,7 @@ SymbolTable* sym_get(char* str){
 }
 
 SymbolTable* sym_get_anonymousvar(){
-	char* str[256];
+	char str[256];
 	sprintf(str,"%%anonymous%d",anonvar_id);
 	anonvar_id++;
 	return sym_get(str);
