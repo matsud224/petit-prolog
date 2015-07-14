@@ -4,6 +4,7 @@
 
 
 SymbolTable symtable[SYMTABLE_LEN]={{NULL,NULL,{NULL,NULL}}};
+int anonvar_id=0;
 
 int sym_hash(char* str){
 	char* curr=str;
@@ -32,3 +33,9 @@ SymbolTable* sym_get(char* str){
 	return searchptr->next;
 }
 
+SymbolTable* sym_get_anonymousvar(){
+	char* str[256];
+	sprintf(str,"%%anonymous%d",anonvar_id);
+	anonvar_id++;
+	return sym_get(str);
+}

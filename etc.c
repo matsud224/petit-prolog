@@ -69,7 +69,6 @@ void vartable_shortcut(VariableTable* vt){
 void vartable_unique(VariableTable vl){
 	VariableTable* ptr=&vl;
 	VariableTable* subptr;
-	VariableTable* temp;
 
 	while(ptr->next!=NULL){
 		subptr=ptr->next;
@@ -236,7 +235,6 @@ VariableTable* vtstack_toptable(VTStack vts){
 
 void vtstack_boundcheck_top(VTStack vts){
 	VTStack* ptr=&vts;
-	VariableTable* tptr;
 	while(ptr->next!=NULL){
 		ptr=ptr->next;
 	}

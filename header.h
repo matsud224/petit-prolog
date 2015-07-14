@@ -133,6 +133,7 @@ void vartable_boundcheck(VariableTable vt);
 //symbol.c
 extern SymbolTable symtable[SYMTABLE_LEN];
 SymbolTable* sym_get(char* str);
+SymbolTable* sym_get_anonymousvar();
 
 //lexer.c
 Token token_get(FILE* fp);
@@ -142,6 +143,7 @@ void token_unget(Token t);
 Program parse_program(FILE* fp);
 StructureList parse_structure_list(FILE* fp);
 Structure parse_structure(FILE* fp);
+Structure parse_list(FILE* fp);
 Term parse_term(FILE* fp);
 TermList parse_term_list(FILE* fp);
 

@@ -8,8 +8,7 @@
 void interpret(FILE* fp){
     Program p = parse_program(fp);
     Program* ptr=&p;
-	VariableTable temp;
-	VTStack stack; stack.next=NULL;
+
     while(ptr->next!=NULL){
         switch(ptr->next->tag){
         case PROG_CLAUSE:
@@ -234,9 +233,9 @@ void next_clause(Box* box,VariableTable* vt_caller_ret,VariableTable* vt_callee_
 				*vt_caller_ret=vt_caller;
 				*vt_callee_ret=vt_callee;
 
-				//vartable_show(*vtstack_toptable(box->vt_stack));
 				//printf("^^^^^^^^^^^^^^^^^^^^");
 				//vartable_show(vt_caller);
+				//vartable_show(vt_callee);
 				return;
 			}/*else{
 				VariableTable* ptr1;
@@ -247,12 +246,14 @@ void next_clause(Box* box,VariableTable* vt_caller_ret,VariableTable* vt_callee_
 					}
 				}
 
-				//vartable_show(*vtstack_toptable(box->vt_stack));
-				printf("^^^^^^^^^^^^^^^^^^^^");
-				vartable_show(vt_caller);
-				vartable_show(vt_callee);
+				vartable_show(*vtstack_toptable(box->vt_stack));
+
 			}*/
 			//printf("fail.\n");
+
+			//printf("^^^^^^^^^^^^^^^^^^^^");
+			//vartable_show(vt_caller);
+			//vartable_show(vt_callee);
 		}
     }
 
@@ -319,10 +320,12 @@ int structure_unify(VariableTable v1,Structure s1,VariableTable v2,Structure s2)
 	TermList* s2_ptr;
 
 	if(s1.functor!=s2.functor){
+		printf("funtor mismatch.(%s,%s)\n",s1.functor->name,s2.functor->name);
 		return 0;
 	}
 
 	if(structure_arity(s1)!=structure_arity(s2)){
+		printf("arity mismatch.(%d,%d)\n",structure_arity(s1),structure_arity(s2));
 		return 0;
 	}
 
@@ -332,6 +335,7 @@ int structure_unify(VariableTable v1,Structure s1,VariableTable v2,Structure s2)
 
 		if(!term_unify(v1,&(s1_ptr->next->term),v2,&(s2_ptr->next->term))){
 			//printf("-term unify failed-\n");
+			printf("argument mismatch.\n");
 			return 0;
 		}
 
