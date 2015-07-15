@@ -3,7 +3,7 @@
 #include "header.h"
 
 
-
+HTStack GlobalStack;
 
 void interpret(FILE* fp){
     Program p = parse_program(fp);
@@ -13,31 +13,9 @@ void interpret(FILE* fp){
         switch(ptr->next->tag){
         case PROG_CLAUSE:
 			interpret_clause(ptr->next->item.clause);
-
-/*
-			printf("-------test-------\n");
-			temp=vartable_from_clause(ptr->next->item.clause);
-			printf("*push*\n");
-			vtstack_push(&stack,vartable_copy(temp));
-			vartable_add(&temp,sym_get("PROLOG"));
-			vtstack_push(&stack,temp);
-			printf("*duplicate*\n");
-			vtstack_duplicate(&stack);
-			vtstack_pop(&stack);
-			vtstack_pop(&stack);
-			printf("*size:%d*",vtstack_size(stack));
-			printf("*show*\n");
-			vartable_show(*vtstack_toptable(stack));
-			printf("-------end test-------\n");
-*/
 			break;
 		case PROG_QUESTION:
 			interpret_question(ptr->next->item.question);
-/*
-			printf("-------test-------\n");
-			vartable_show(vartable_from_question(ptr->next->item.question));
-			printf("-------end test-------\n");
-	*/
 			break;
 		}
 
@@ -68,88 +46,82 @@ Box* box_get(){
 	b->is_begin=0;
 	b->is_end=0;
 	b->is_failed=0;
-	b->vt_stack.next=NULL;
 	b->selected_clause=NULL;
 
 	return b;
 }
 
 void interpret_question(Question question){
+	GlobalStack.next=NULL;
 	//箱の準備
 	Box* beginbox=box_get(); beginbox->is_begin=1;
 	Box* endbox=box_get(); endbox->is_end=1;
 	Box* prev=beginbox;
 	Box* current;
-	VTStack stack; stack.next=NULL;
 
-	vtstack_push(&stack,vartable_from_question(question));
+	VariableTable* vartable=malloc(sizeof(VariableTable));
+	vartable->next=NULL;
+	vartable_from_question(vartable,question);
 
     StructureList* ptr;
     for(ptr=&(question.body);ptr->next!=NULL;ptr=ptr->next){
 		current=box_get();
-		current->vt_stack=stack;
 		current->structure=ptr->next->structure;
 		current->selected_clause=&(current->structure.functor->clause_list);
+		current->vartable=vartable;
 		prev->success=current;
 		current->failure=prev;
 		prev=current;
     }
     prev->success=endbox;
 	endbox->failure=prev;
+	endbox->vartable=vartable;
 
-	endbox->vt_stack=stack;
-
-	//vtstack_push(&(beginbox->success->vt_stack),vartable_from_question(question));
-
-	//printf("-start-\n");
 	execute(beginbox->success);
 }
 
 void execute(Box* current){
-	VariableTable vt_caller,vt_callee;
 retry:
+
 	while(!(current->is_end)){
-		vt_caller.next=NULL; vt_callee.next=NULL;
+		VariableTable* callee_new_vartable;
 
+		printf("start\n");
+		structure_show(current->structure);
 
-		//printf("-execute-\n");
-		next_clause(current,&vt_caller,&vt_callee);
-		//vartable_show(*vtstack_toptable(current->vt_stack));
-		//printf("-clause selected-\n");
+		next_clause(current,&callee_new_vartable);
+
 		if(current->is_failed){
-			//printf("-failed-\n");
-			//vtstack_pop(&(current->vt_stack));
-
+			printf("fail\n");
 			//リセット
 			current->is_failed=0;
 			current->selected_clause=&(current->structure.functor->clause_list);
 			current=current->failure;
 
-			vtstack_pop(&(current->vt_stack));
+			htstack_pop(&GlobalStack);
+			htstack_pop(&GlobalStack);
 
 			if(current->is_begin){
 				printf("\nno.\n");
 				return;
 			}
 		}else{
+			printf("success\n");
 			if(current->selected_clause->clause->body.next!=NULL){
-				//printf("-subgoals-\n");
+				printf("subgoals*prepare\n");
 				//サブゴール有り
                 //箱の準備
 				Box* beginbox=current;
 				Box* endbox=current->success;
 				Box* prev=beginbox;
 				Box* curr_box;
-				VTStack stack; stack.next=NULL;
-				vtstack_push(&stack,vt_callee);
-				vtstack_boundcheck_top(stack);
 
 				StructureList* ptr;
 				for(ptr=&(current->selected_clause->clause->body);ptr->next!=NULL;ptr=ptr->next){
 					curr_box=box_get();
-					curr_box->vt_stack=stack;
 					curr_box->structure=ptr->next->structure;
 					curr_box->selected_clause=&(curr_box->structure.functor->clause_list);
+					curr_box->vartable=callee_new_vartable;
 					prev->success=curr_box;
 					curr_box->failure=prev;
 					prev=curr_box;
@@ -157,24 +129,18 @@ retry:
 
 				prev->success=endbox;
 				endbox->failure=prev;
-			}else{
-				//printf("-no subgoals-\n");
 
+				printf("prepared.\n");
 			}
-
-			vtstack_push(&(current->vt_stack),vt_caller);
-			vtstack_boundcheck_top(current->vt_stack);
 
 			current=current->success;
 		}
-
-
 	}
 
 	//解を発見
-	if(vtstack_toptable(current->vt_stack)->next!=NULL){
+	if(current->vartable->next!=NULL){
 		//変数テーブルに１つ以上あったら
-		vartable_show(*vtstack_toptable(current->vt_stack));
+		vartable_show(*(current->vartable));
 		printf("\n this? (y/n) : ");
 		char ans='\0';
 		while(ans!='y' && ans!='n'){
@@ -183,14 +149,11 @@ retry:
 		if(ans=='y'){
 			printf("\nyes.\n"); return;
 		}else{
-
 			current=current->failure;
 
-			vtstack_pop(&(current->vt_stack));
+			htstack_pop(&GlobalStack);
+			htstack_pop(&GlobalStack);
 
-			//printf("size: %d .",vtstack_size(current->vt_stack));
-			//vartable_show(current->vt_stack.next->next->vartable);
-			//vartable_show(current->vt_stack.next->vartable);
 			if(current->is_begin){
 				printf("\nno.\n");
 				return;
@@ -203,58 +166,49 @@ retry:
 }
 
 
-void next_clause(Box* box,VariableTable* vt_caller_ret,VariableTable* vt_callee_ret){
-	ClauseList* cl_ptr;
-
-	int arity=structure_arity(box->structure);
-
+void next_clause(Box* box,VariableTable** vt_callee){
 	//すでに失敗しているとき
 	if(box->is_failed){return;}
 
 	if(!(box->selected_clause)){box->is_failed=1;return;}
 
+	ClauseList* cl_ptr;
+
+	int arity=structure_arity(box->structure);
+
     for(cl_ptr=box->selected_clause;cl_ptr->next!=NULL;cl_ptr=cl_ptr->next){
-		//printf("-try-\n");
 		if(arity==cl_ptr->next->clause->arity){
-			//printf("unify start---");structure_show(box->structure);printf(" and ");structure_show(cl_ptr->next->clause->head);printf("\n");
-			VariableTable vt_caller=vartable_copy(*vtstack_toptable(box->vt_stack));
-			VariableTable vt_callee=vartable_from_clause(*(cl_ptr->next->clause));
-			printf("-unification start-\n");
-			vartable_show(vt_caller);
-			vartable_show(vt_callee);
+			printf("\nnext_clause*try\n");
+			htstack_pushnew(&GlobalStack);
+			HistoryTable* history_caller=htstack_toptable(GlobalStack);
+			htstack_pushnew(&GlobalStack);
+			HistoryTable* history_callee=htstack_toptable(GlobalStack);
 
-			vartable_boundcheck(vt_caller);
+			VariableTable* new_vartable=malloc(sizeof(VariableTable));
+			new_vartable->next=NULL;
+			vartable_from_clause(new_vartable,*(cl_ptr->next->clause));
 
-			if(structure_unify(vt_caller,box->structure,vt_callee,cl_ptr->next->clause->head)){
-				//printf("success.\n");
+			Structure* portable1=structure_to_portable(&(box->structure),*(box->vartable));
+			Structure* portable2=structure_to_portable(&(cl_ptr->next->clause->head),*new_vartable);
+
+			printf("unify start-----------\n");
+			structure_show(*portable1);
+			printf("\n");
+			structure_show(*portable2);
+			printf("unify end-------------\n");
+
+			if(structure_unify(*portable1,*portable2,box->vartable,new_vartable,history_caller,history_callee)){
+				printf("\nnext_clause*success\n");
 				box->selected_clause=cl_ptr->next;
-				//printf("-unification success-\n");
-
-				*vt_caller_ret=vt_caller;
-				*vt_callee_ret=vt_callee;
-
-				printf("^^^^^^^^^^^^^^^^^^^^");
-				vartable_show(vt_caller);
-				vartable_show(vt_callee);
+				*vt_callee=new_vartable;
 				return;
-			}/*else{
-				VariableTable* ptr1;
-				for(ptr1=&vt_caller;ptr1->next!=NULL;ptr1=ptr1->next){
-					if(ptr1->next->value.tag==TERM_POINTER && ptr1->next->value.value.pointer->tag!=TERM_UNBOUND && ptr1->next->value.ref_bound==0){
-						printf("\n\n***unbind***\n\n");
-						ptr1->next->value.value.pointer->tag=TERM_UNBOUND;
-					}
-				}
-
-				vartable_show(*vtstack_toptable(box->vt_stack));
-
-			}*/
-			//printf("fail.\n");
-
-			printf("^^^^^^^^^^^^^^^^^^^^");
-			vartable_show(vt_caller);
-			vartable_show(vt_callee);
+			}else{
+				printf("\nnext_clause*fail\n");
+				htstack_pop(&GlobalStack);
+				htstack_pop(&GlobalStack);
+			}
 		}
+
     }
 
 	box->is_failed=1;
@@ -262,70 +216,56 @@ void next_clause(Box* box,VariableTable* vt_caller_ret,VariableTable* vt_callee_
 	return;
 }
 
-VariableTable vartable_from_clause(Clause c){
+void vartable_from_clause(VariableTable* vt,Clause c){
 	StructureList* sl_ptr=&(c.body);
-	VariableTable vl; vl.next=NULL;
 
-	vartable_concat(&vl,vartable_from_structure(c.head));
+	vartable_from_structure(vt,c.head);
 
 	while(sl_ptr->next!=NULL){
-		vartable_concat(&vl,vartable_from_structure(sl_ptr->next->structure));
+		vartable_from_structure(vt,sl_ptr->next->structure);
 
 		sl_ptr=sl_ptr->next;
 	}
 
-	vartable_unique(vl);
-
-	return vl;
 }
 
-VariableTable vartable_from_question(Question q){
+void vartable_from_question(VariableTable* vt,Question q){
 	StructureList* sl_ptr=&(q.body);
-	VariableTable vl; vl.next=NULL;
+
 	while(sl_ptr->next!=NULL){
-		vartable_concat(&vl,vartable_from_structure(sl_ptr->next->structure));
+		vartable_from_structure(vt,sl_ptr->next->structure);
 
 		sl_ptr=sl_ptr->next;
 	}
 
-	vartable_unique(vl);
-
-	return vl;
 }
 
-VariableTable vartable_from_structure(Structure s){
+void vartable_from_structure(VariableTable* vt,Structure s){
 	//重複は考えない（後でまとめて削除する）
 	TermList* tl_ptr=&(s.arguments);
-	VariableTable vl; vl.next=NULL;
+
 	while(tl_ptr->next!=NULL){
 		if(tl_ptr->next->term.tag==TERM_STRUCTURE){
-			vartable_concat(&vl,vartable_from_structure(*(tl_ptr->next->term.value.structure)));
+			vartable_from_structure(vt,*(tl_ptr->next->term.value.structure));
 		}else if(tl_ptr->next->term.tag==TERM_VARIABLE){
-			tl_ptr->next->term.ref_bound=0;
-			vartable_add(&vl,tl_ptr->next->term.value.variable);
+			vartable_addvar(vt,tl_ptr->next->term.value.variable);
 		}
 
 		tl_ptr=tl_ptr->next;
 	}
-
-	vartable_unique(vl);
-
-	return vl;
 }
 
 
 
-int structure_unify(VariableTable v1,Structure s1,VariableTable v2,Structure s2){
+int structure_unify(Structure s1,Structure s2,VariableTable* v1,VariableTable* v2,HistoryTable* h1,HistoryTable* h2){
 	TermList* s1_ptr;
 	TermList* s2_ptr;
 
 	if(s1.functor!=s2.functor){
-		//printf("funtor mismatch.(%s,%s)\n",s1.functor->name,s2.functor->name);
 		return 0;
 	}
 
 	if(structure_arity(s1)!=structure_arity(s2)){
-		//printf("arity mismatch.(%d,%d)\n",structure_arity(s1),structure_arity(s2));
 		return 0;
 	}
 
@@ -333,19 +273,50 @@ int structure_unify(VariableTable v1,Structure s1,VariableTable v2,Structure s2)
 
 	while(s1_ptr->next!=NULL){
 
-		if(!term_unify(v1,&(s1_ptr->next->term),v2,&(s2_ptr->next->term))){
-			//printf("-term unify failed-\n");
-			//printf("argument mismatch.\n");
+		if(!term_unify(&(s1_ptr->next->term),&(s2_ptr->next->term),v1,v2,h1,h2)){
 			return 0;
 		}
 
-		//printf("-term unify success-\n");
 		s1_ptr=s1_ptr->next;
 		s2_ptr=s2_ptr->next;
 	}
 
 	return 1;
 }
+
+Term* term_remove_ppterm(Term* t){
+	if(t->tag==TERM_PPTERM){
+		return *(t->value.ppterm);
+	}else{
+		return t;
+	}
+}
+
+int term_unify(Term* caller,Term* callee,VariableTable* v1,VariableTable* v2,HistoryTable* h1,HistoryTable* h2){
+	if(caller->tag==TERM_INTEGER && callee->tag==TERM_INTEGER){
+		return caller->value.integer==callee->value.integer;
+	}else if(caller->tag==TERM_STRUCTURE && callee->tag==TERM_STRUCTURE){
+		return structure_unify(*(caller->value.structure),*(callee->value.structure),v1,v2,h1,h2);
+	}else if(caller->tag==TERM_PPTERM && callee->tag==TERM_PPTERM
+			 && (*(*(caller->value.ppterm))).tag==TERM_UNBOUND && (*(*(callee->value.ppterm))).tag==TERM_UNBOUND){
+		htable_addforward(h2,caller->value.ppterm,*(caller->value.ppterm));
+		*(caller->value.ppterm)=*(callee->value.ppterm);
+		return 1;
+	}else if(caller->tag==TERM_PPTERM && (*(*(caller->value.ppterm))).tag==TERM_UNBOUND){
+		*(*caller->value.ppterm)=*callee;
+		htable_add(h1,caller->value.ppterm);
+		return 1;
+	}else if(callee->tag==TERM_PPTERM && (*(*(callee->value.ppterm))).tag==TERM_UNBOUND){
+		*(*callee->value.ppterm)=*caller;
+		htable_add(h2,callee->value.ppterm);
+		return 1;
+	}else{
+		return term_unify(term_remove_ppterm(caller),term_remove_ppterm(callee),v1,v2,h1,h2);
+	}
+
+	return 0;
+}
+
 
 Structure* structure_to_portable(Structure* s,VariableTable vt){
 	Structure* result=malloc(sizeof(Structure));
@@ -372,15 +343,14 @@ Term term_to_portable(Term* t,VariableTable vt){
 	Term result;
 	switch(t->tag){
 	case TERM_INTEGER:
-	case TERM_POINTER:
 		return *t;
 	case TERM_STRUCTURE:
 		result.tag=TERM_STRUCTURE;
 		result.value.structure=structure_to_portable(t->value.structure,vt);
 		return result;
 	case TERM_VARIABLE:
-		result.tag=TERM_POINTER;
-		result.value.pointer=vartable_find(vt,t->value.variable);
+		result.tag=TERM_PPTERM;
+		result.value.ppterm=vartable_findvar(vt,t->value.variable);
 		return result;
 	case TERM_UNBOUND:
 		error("unexpected case.");
@@ -391,40 +361,3 @@ Term term_to_portable(Term* t,VariableTable vt){
 	}
 }
 
-int term_unify(VariableTable vl_caller,Term* caller,VariableTable vl_callee,Term* callee){
-	//printf("-term unify-\n");
-	//printf("-tag %d %d -",caller->tag,callee->tag);
-	if(caller->tag==TERM_INTEGER && callee->tag==TERM_INTEGER){
-		return caller->value.integer==callee->value.integer;
-
-	}else if(caller->tag==TERM_STRUCTURE && callee->tag==TERM_STRUCTURE){
-		return structure_unify(vl_caller,*(caller->value.structure),vl_callee,*(callee->value.structure));
-
-	}else if(caller->tag==TERM_POINTER && callee->tag==TERM_POINTER){
-		return term_unify(vl_caller,caller->value.pointer,vl_callee,callee->value.pointer);
-
-	}else if(caller->tag==TERM_VARIABLE && callee->tag==TERM_VARIABLE){
-		return term_unify(vl_caller,vartable_find(vl_caller,caller->value.variable),vl_callee,vartable_find(vl_callee,callee->value.variable));
-
-	}else if(caller->tag==TERM_POINTER){
-		return term_unify(vl_caller,caller->value.pointer,vl_callee,callee);
-	}else if(callee->tag==TERM_POINTER){
-		return term_unify(vl_caller,caller,vl_callee,callee->value.pointer);
-	}else if(caller->tag==TERM_VARIABLE){
-		return term_unify(vl_caller,vartable_find(vl_caller,caller->value.variable),vl_callee,callee);
-	}else if(callee->tag==TERM_VARIABLE){
-		return term_unify(vl_caller,caller,vl_callee,vartable_find(vl_callee,callee->value.variable));
-	}else if(caller->tag==TERM_UNBOUND && callee->tag==TERM_UNBOUND){
-		callee->tag=TERM_POINTER;
-		callee->value.pointer=caller;
-		return 1;
-	}else if(caller->tag==TERM_UNBOUND){
-		*caller=term_to_portable(callee,vl_callee);
-		return 1;
-	}else if(callee->tag==TERM_UNBOUND){
-		*callee=term_to_portable(caller,vl_caller);
-		return 1;
-	}
-
-	return 0;
-}
