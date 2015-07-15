@@ -94,6 +94,7 @@ typedef struct _vartable{
 typedef struct _history{
 	struct _history* next;
 	Term** ppterm;
+	Term* pterm;
 	Term* prev;
 } HistoryTable;
 
@@ -121,7 +122,7 @@ void term_show(Term* t);
 int structure_arity(Structure s);
 void structure_show(Structure s);
 
-void htable_add(HistoryTable *vl,Term** ppterm);
+void htable_add(HistoryTable *vl,Term* pterm);
 void htable_addforward(HistoryTable *vl,Term** ppterm,Term* prev);
 
 void vartable_addvar(VariableTable *vl,Variable var);
@@ -163,5 +164,5 @@ void vartable_from_structure(VariableTable* vt,Structure s);
 Term term_to_portable(Term* t,VariableTable vt);
 Structure* structure_to_portable(Structure* s,VariableTable vt);
 Term* term_unwrap(Term* t,VariableTable vt);
-int structure_unify(Structure s1,Structure s2,VariableTable* v1,VariableTable* v2,HistoryTable* h1,HistoryTable* h2);
-int term_unify(Term* t1,Term* t2,VariableTable* v1,VariableTable* v2,HistoryTable* h1,HistoryTable* h2);
+int structure_unify(Structure s1,Structure s2,VariableTable* v1,VariableTable* v2,HistoryTable* h);
+int term_unify(Term* t1,Term* t2,VariableTable* v1,VariableTable* v2,HistoryTable* h);

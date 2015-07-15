@@ -10,13 +10,13 @@ void error(char* msg){
 }
 
 
-void htable_add(HistoryTable* ht,Term** ppterm){
+void htable_add(HistoryTable* ht,Term* pterm){
 	HistoryTable* ptr=ht;
 	printf("~~~htable added.~~~\n");
 	//後入れ先出し
 	HistoryTable* temp=ptr->next;
 	ptr->next=malloc(sizeof(HistoryTable));
-	ptr->next->ppterm=ppterm;
+	ptr->next->pterm=pterm;
 	ptr->next->prev=NULL;
 	ptr->next->next=temp;
 
@@ -32,7 +32,7 @@ void htable_add(HistoryTable* ht,Term** ppterm){
 }
 void htable_addforward(HistoryTable* ht,Term** ppterm,Term* prev){
 	HistoryTable* ptr=ht;
-	printf("~~~htable added.~~~\n");
+	printf("~~~htable added(forward).~~~\n");
 	//後入れ先出し
 	HistoryTable* temp=ptr->next;
 	ptr->next=malloc(sizeof(HistoryTable));
@@ -205,10 +205,14 @@ void htstack_pop(HTStack *hts){
 	printf("{{{pop called}}}\n");
 	HTStack* ptr=hts;
 	HTStack* prev=NULL;
+	int cnt=0;
 	while(ptr->next!=NULL){
+		cnt++;
 		prev=ptr;
 		ptr=ptr->next;
 	}
+
+	printf("count=%d\n",cnt);
 
 	if(hts->next==NULL){printf("no stack item\n"); return;}
 
@@ -216,7 +220,7 @@ void htstack_pop(HTStack *hts){
 	HistoryTable* hptr=&(ptr->htable);
 	while(hptr->next!=NULL){
 		if(hptr->next->prev==NULL){
-			(*(*(hptr->next->ppterm))).tag=TERM_UNBOUND;
+			hptr->next->pterm->tag=TERM_UNBOUND;
 			printf("1 unbind\n");
 		}else{
 			(*(hptr->next->ppterm))=hptr->next->prev;

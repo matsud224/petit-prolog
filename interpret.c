@@ -99,7 +99,6 @@ retry:
 			current=current->failure;
 
 			htstack_pop(&GlobalStack);
-			htstack_pop(&GlobalStack);
 
 			if(current->is_begin){
 				printf("\nno.\n");
@@ -152,7 +151,6 @@ retry:
 			current=current->failure;
 
 			htstack_pop(&GlobalStack);
-			htstack_pop(&GlobalStack);
 
 			if(current->is_begin){
 				printf("\nno.\n");
@@ -180,9 +178,7 @@ void next_clause(Box* box,VariableTable** vt_callee){
 		if(arity==cl_ptr->next->clause->arity){
 			printf("\nnext_clause*try\n");
 			htstack_pushnew(&GlobalStack);
-			HistoryTable* history_caller=htstack_toptable(GlobalStack);
-			htstack_pushnew(&GlobalStack);
-			HistoryTable* history_callee=htstack_toptable(GlobalStack);
+			HistoryTable* history=htstack_toptable(GlobalStack);
 
 			VariableTable* new_vartable=malloc(sizeof(VariableTable));
 			new_vartable->next=NULL;
@@ -197,14 +193,13 @@ void next_clause(Box* box,VariableTable** vt_callee){
 			structure_show(*portable2);
 			printf("unify end-------------\n");
 
-			if(structure_unify(*portable1,*portable2,box->vartable,new_vartable,history_caller,history_callee)){
+			if(structure_unify(*portable1,*portable2,box->vartable,new_vartable,history)){
 				printf("\nnext_clause*success\n");
 				box->selected_clause=cl_ptr->next;
 				*vt_callee=new_vartable;
 				return;
 			}else{
 				printf("\nnext_clause*fail\n");
-				htstack_pop(&GlobalStack);
 				htstack_pop(&GlobalStack);
 			}
 		}
@@ -257,7 +252,7 @@ void vartable_from_structure(VariableTable* vt,Structure s){
 
 
 
-int structure_unify(Structure s1,Structure s2,VariableTable* v1,VariableTable* v2,HistoryTable* h1,HistoryTable* h2){
+int structure_unify(Structure s1,Structure s2,VariableTable* v1,VariableTable* v2,HistoryTable* h){
 	TermList* s1_ptr;
 	TermList* s2_ptr;
 
@@ -273,7 +268,7 @@ int structure_unify(Structure s1,Structure s2,VariableTable* v1,VariableTable* v
 
 	while(s1_ptr->next!=NULL){
 
-		if(!term_unify(&(s1_ptr->next->term),&(s2_ptr->next->term),v1,v2,h1,h2)){
+		if(!term_unify(&(s1_ptr->next->term),&(s2_ptr->next->term),v1,v2,h)){
 			return 0;
 		}
 
@@ -292,26 +287,26 @@ Term* term_remove_ppterm(Term* t){
 	}
 }
 
-int term_unify(Term* caller,Term* callee,VariableTable* v1,VariableTable* v2,HistoryTable* h1,HistoryTable* h2){
+int term_unify(Term* caller,Term* callee,VariableTable* v1,VariableTable* v2,HistoryTable* h){
 	if(caller->tag==TERM_INTEGER && callee->tag==TERM_INTEGER){
 		return caller->value.integer==callee->value.integer;
 	}else if(caller->tag==TERM_STRUCTURE && callee->tag==TERM_STRUCTURE){
-		return structure_unify(*(caller->value.structure),*(callee->value.structure),v1,v2,h1,h2);
+		return structure_unify(*(caller->value.structure),*(callee->value.structure),v1,v2,h);
 	}else if(caller->tag==TERM_PPTERM && callee->tag==TERM_PPTERM
 			 && (*(*(caller->value.ppterm))).tag==TERM_UNBOUND && (*(*(callee->value.ppterm))).tag==TERM_UNBOUND){
-		htable_addforward(h2,caller->value.ppterm,*(caller->value.ppterm));
+		htable_addforward(h,caller->value.ppterm,*(caller->value.ppterm));
 		*(caller->value.ppterm)=*(callee->value.ppterm);
 		return 1;
 	}else if(caller->tag==TERM_PPTERM && (*(*(caller->value.ppterm))).tag==TERM_UNBOUND){
-		*(*caller->value.ppterm)=*callee;
-		htable_add(h1,caller->value.ppterm);
+		*(*caller->value.ppterm)=*term_remove_ppterm(callee);
+		htable_add(h,*(caller->value.ppterm));
 		return 1;
 	}else if(callee->tag==TERM_PPTERM && (*(*(callee->value.ppterm))).tag==TERM_UNBOUND){
-		*(*callee->value.ppterm)=*caller;
-		htable_add(h2,callee->value.ppterm);
+		*(*callee->value.ppterm)=*term_remove_ppterm(caller);
+		htable_add(h,*(callee->value.ppterm));
 		return 1;
 	}else{
-		return term_unify(term_remove_ppterm(caller),term_remove_ppterm(callee),v1,v2,h1,h2);
+		return term_unify(term_remove_ppterm(caller),term_remove_ppterm(callee),v1,v2,h);
 	}
 
 	return 0;
