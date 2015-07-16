@@ -73,10 +73,7 @@ Structure parse_structure(FILE* fp){
     Token gottoken=token_get(fp);
     Structure newstruct;
 
-    //printf("parse structure\n");
-
     if(gottoken.tag==TOK_ASCII && gottoken.value.ascii=='['){
-		//printf("in structure, list!");
 		token_unget(gottoken);
 		return parse_list(fp);
     }else if(gottoken.tag!=TOK_ATOM){
@@ -109,8 +106,6 @@ Structure parse_list_sub(FILE* fp){
     Token gottoken;
     Structure newstruct;
 
-    //printf("sub\n");
-
     newstruct.functor=sym_get(".");
 
     newstruct.arguments.next=malloc(sizeof(TermList));
@@ -120,15 +115,12 @@ Structure parse_list_sub(FILE* fp){
 
     gottoken=token_get(fp);
     if(gottoken.tag==TOK_ASCII && gottoken.value.ascii==','){
-		//printf("comma\n");
 		newstruct.arguments.next->next->term.tag=TERM_STRUCTURE;
 		newstruct.arguments.next->next->term.value.structure=malloc(sizeof(Structure));
 		*(newstruct.arguments.next->next->term.value.structure)=parse_list_sub(fp);
     }else if(gottoken.tag==TOK_ASCII && gottoken.value.ascii=='|'){
-		//printf("ascii-> |\n");
 		newstruct.arguments.next->next->term=parse_term(fp);
     }else{
-    	//printf("end of list.\n");
     	token_unget(gottoken);
 		newstruct.arguments.next->next->term.tag=TERM_STRUCTURE;
 		newstruct.arguments.next->next->term.value.structure=malloc(sizeof(Structure));
@@ -176,8 +168,6 @@ Term parse_term(FILE* fp){
     Term t;
     Token gottoken=token_get(fp);
 
-	//printf("parse term : %d,%c\n",gottoken.tag,gottoken.value.ascii);
-
     if(gottoken.tag==TOK_INTEGER){
         t.tag=TERM_INTEGER; t.value.integer=gottoken.value.integer;
     }else if(gottoken.tag==TOK_VARIABLE){
@@ -188,13 +178,11 @@ Term parse_term(FILE* fp){
         t.value.structure=malloc(sizeof(Structure));
         *(t.value.structure)=parse_structure(fp);
     }else if(gottoken.tag==TOK_ASCII && gottoken.value.ascii=='['){
-    	//printf("list\n");
 		token_unget(gottoken);
         t.tag=TERM_STRUCTURE;
         t.value.structure=malloc(sizeof(Structure));
         *(t.value.structure)=parse_structure(fp);
     }else{
-    	//printf("ascii:%c",gottoken.value.ascii);
         error("term expected.");
     }
 
@@ -205,7 +193,7 @@ TermList parse_term_list(FILE* fp){
     TermList tl_root;tl_root.next=NULL;
     TermList* tl_terminal=&tl_root;
     Token gottoken;
-    //printf("parse term list\n");
+
     while(1){
         tl_terminal->next=malloc(sizeof(TermList));
         tl_terminal->next->term=parse_term(fp);

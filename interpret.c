@@ -86,13 +86,35 @@ retry:
 	while(!(current->is_end)){
 		VariableTable* callee_new_vartable;
 
-		//printf("start\n");
-		//structure_show(current->structure);
+		if(current->is_failed){
+			goto fail_process;
+		}
+
+		if(current->structure.functor==sym_get("!") && structure_arity(current->structure)==0){
+			//カット！
+			Box* boxptr=current;
+			while(1){
+				boxptr->is_failed=1;
+
+				if(boxptr->failure==NULL || boxptr->failure->vartable!=boxptr->vartable){
+					//vartableの変わり目
+					if(boxptr->failure!=NULL){
+						boxptr->failure->is_failed=1;
+					}
+					break;
+				}else{
+					boxptr=boxptr->failure;
+				}
+			}
+
+			current=current->success;
+			continue;
+		}
 
 		next_clause(current,&callee_new_vartable);
 
 		if(current->is_failed){
-			//printf("fail\n");
+fail_process:
 			//リセット
 			current->is_failed=0;
 			current->selected_clause=&(current->structure.functor->clause_list);
@@ -105,9 +127,7 @@ retry:
 				return;
 			}
 		}else{
-			//printf("success\n");
 			if(current->selected_clause->clause->body.next!=NULL){
-				//printf("subgoals*prepare\n");
 				//サブゴール有り
                 //箱の準備
 				Box* beginbox=current;
@@ -128,8 +148,6 @@ retry:
 
 				prev->success=endbox;
 				endbox->failure=prev;
-
-				//printf("prepared.\n");
 			}
 
 			current=current->success;
@@ -176,7 +194,6 @@ void next_clause(Box* box,VariableTable** vt_callee){
 
     for(cl_ptr=box->selected_clause;cl_ptr->next!=NULL;cl_ptr=cl_ptr->next){
 		if(arity==cl_ptr->next->clause->arity){
-			//printf("\nnext_clause*try\n");
 			htstack_pushnew(&GlobalStack);
 			HistoryTable* history=htstack_toptable(GlobalStack);
 
@@ -187,21 +204,11 @@ void next_clause(Box* box,VariableTable** vt_callee){
 			Structure* portable1=structure_to_portable(&(box->structure),*(box->vartable));
 			Structure* portable2=structure_to_portable(&(cl_ptr->next->clause->head),*new_vartable);
 
-			/*
-			printf("unify start-----------\n");
-			structure_show(*portable1);
-			printf("\n");
-			structure_show(*portable2);
-			printf("unify end-------------\n");
-			*/
-
 			if(structure_unify(*portable1,*portable2,box->vartable,new_vartable,history)){
-				//printf("\nnext_clause*success\n");
 				box->selected_clause=cl_ptr->next;
 				*vt_callee=new_vartable;
 				return;
 			}else{
-				//printf("\nnext_clause*fail\n");
 				htstack_pop(&GlobalStack);
 			}
 		}

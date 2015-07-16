@@ -27,7 +27,7 @@ restart:
 		nextchar=getc(fp);
 	}
 
-	if(isalpha(nextchar) || nextchar=='_'){
+	if(isalpha(nextchar) || nextchar=='_' || nextchar=='!'){
 		temp[0]=nextchar;
 		for(i=1;i<IDENT_MAX_STR_LEN;i++){
 			nextchar=getc(fp);
@@ -39,7 +39,14 @@ restart:
 			}
 		}
 		temp[i]='\0';
-		if(isupper(temp[0]) || temp[0]=='_'){
+
+		if(temp[0]=='!'){
+			if(temp[1]!='\0'){
+				error("character `!' must be cut operator.");
+			}
+			restok.tag=TOK_ATOM;
+			restok.value.atom=sym_get(temp);
+		}else if(isupper(temp[0]) || temp[0]=='_'){
 			if(temp[0]=='_' && temp[1]=='\0'){
 				//アンダースコア単独の場合...名前無し変数
 				restok.tag=TOK_VARIABLE;

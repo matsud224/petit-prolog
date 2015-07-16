@@ -4,6 +4,7 @@
 #include "header.h"
 
 
+
 void error(char* msg){
     fprintf(stderr,"ERROR: %s\n",msg);
     return;

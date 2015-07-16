@@ -1,4 +1,4 @@
----petit-prolog BNF---
+%---petit-prolog BNF---
 
 <program> ::= <empty>
 		| <program> <clause> "."
@@ -14,7 +14,20 @@
 %Atomは arity 0 のstructureと考える
 <structure> ::= <atom> "(" <term-list> ")"
 			| <atom>
+			| <exp>
+			| <variable> is <structure>
+			| <structure> = <structure>
+			| <structure>
 
 <term> ::= <integer> | <variable> | <structure>
 <term-list> ::= <term>
 			| <term-list> , <term>
+
+
+<
+
+<exp> ::= <exp_term> + <exp_term>
+
+<exp_term> ::= <factor> {[* /] <factor> }
+
+<factor> ::= <integer> | <variable> | "(" <exp> ")"
