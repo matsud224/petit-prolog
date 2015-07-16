@@ -137,7 +137,7 @@ retry:
 	}
 
 	//解を発見
-	if(current->vartable->next!=NULL){
+	if(vartable_hasitem(current->vartable)){
 		//変数テーブルに１つ以上あったら
 		vartable_show(*(current->vartable));
 		printf("\n this? (y/n) : ");

@@ -73,6 +73,21 @@ void vartable_show(VariableTable v1){
 
 }
 
+int vartable_hasitem(VariableTable* v1){
+	VariableTable* ptr=v1;
+
+	while(ptr->next!=NULL){
+		if(ptr->next->variable->name[0]!='%'){
+			//匿名変数(アンダーバー・%anonymousXX)でない場合
+			return 1;
+		}
+
+		ptr=ptr->next;
+	}
+
+	return 0;
+}
+
 void term_show(Term* t){
 	switch(t->tag){
 	case TERM_INTEGER:

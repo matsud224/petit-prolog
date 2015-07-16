@@ -127,6 +127,7 @@ void htable_addforward(HistoryTable *vl,Term** ppterm,Term* prev);
 
 void vartable_addvar(VariableTable *vl,Variable var);
 Term** vartable_findvar(VariableTable vl,Variable var);
+int vartable_hasitem(VariableTable* v1);
 
 void htstack_pushnew(HTStack *hts);
 void htstack_push(HTStack *hts,HistoryTable htable);
