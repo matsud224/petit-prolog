@@ -12,7 +12,7 @@ void error(char* msg){
 
 void htable_add(HistoryTable* ht,Term* pterm){
 	HistoryTable* ptr=ht;
-	printf("~~~htable added.~~~\n");
+	//printf("~~~htable added.~~~\n");
 	//後入れ先出し
 	HistoryTable* temp=ptr->next;
 	ptr->next=malloc(sizeof(HistoryTable));
@@ -20,33 +20,17 @@ void htable_add(HistoryTable* ht,Term* pterm){
 	ptr->next->prev=NULL;
 	ptr->next->next=temp;
 
-	ptr=ht;
-	int i=0;
-	while(ptr->next!=NULL){
-		ptr=ptr->next;
-		i++;
-	}
-	printf("items:%d\n",i);
-
 	return;
 }
 void htable_addforward(HistoryTable* ht,Term** ppterm,Term* prev){
 	HistoryTable* ptr=ht;
-	printf("~~~htable added(forward).~~~\n");
+	//printf("~~~htable added(forward).~~~\n");
 	//後入れ先出し
 	HistoryTable* temp=ptr->next;
 	ptr->next=malloc(sizeof(HistoryTable));
 	ptr->next->ppterm=ppterm;
 	ptr->next->prev=prev;
 	ptr->next->next=temp;
-
-	ptr=ht;
-	int i=0;
-	while(ptr->next!=NULL){
-		ptr=ptr->next;
-		i++;
-	}
-	printf("items:%d\n",i);
 
 	return;
 }
@@ -174,7 +158,7 @@ Term** vartable_findvar(VariableTable vl,Variable var){
 void htstack_pushnew(HTStack *hts){
 	HTStack* ptr=hts;
 
-	printf("{{pushnew}}\n");
+	//printf("{{pushnew}}\n");
 
 	while(ptr->next!=NULL){
 		ptr=ptr->next;
@@ -189,7 +173,7 @@ void htstack_pushnew(HTStack *hts){
 void htstack_push(HTStack *hts,HistoryTable htable){
 	HTStack* ptr=hts;
 
-	printf("{{push}}\n");
+	//printf("{{push}}\n");
 
 	while(ptr->next!=NULL){
 		ptr=ptr->next;
@@ -202,7 +186,7 @@ void htstack_push(HTStack *hts,HistoryTable htable){
 }
 
 void htstack_pop(HTStack *hts){
-	printf("{{{pop called}}}\n");
+	//printf("{{{pop called}}}\n");
 	HTStack* ptr=hts;
 	HTStack* prev=NULL;
 	int cnt=0;
@@ -212,19 +196,19 @@ void htstack_pop(HTStack *hts){
 		ptr=ptr->next;
 	}
 
-	printf("count=%d\n",cnt);
+	//printf("count=%d\n",cnt);
 
-	if(hts->next==NULL){printf("no stack item\n"); return;}
+	if(hts->next==NULL){ return;}
 
 	//巻き戻し
 	HistoryTable* hptr=&(ptr->htable);
 	while(hptr->next!=NULL){
 		if(hptr->next->prev==NULL){
 			hptr->next->pterm->tag=TERM_UNBOUND;
-			printf("1 unbind\n");
+			//printf("1 unbind\n");
 		}else{
 			(*(hptr->next->ppterm))=hptr->next->prev;
-			printf("redo:pointer\n");
+			//printf("redo:pointer\n");
 		}
 
 		hptr=hptr->next;

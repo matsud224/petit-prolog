@@ -86,13 +86,13 @@ retry:
 	while(!(current->is_end)){
 		VariableTable* callee_new_vartable;
 
-		printf("start\n");
-		structure_show(current->structure);
+		//printf("start\n");
+		//structure_show(current->structure);
 
 		next_clause(current,&callee_new_vartable);
 
 		if(current->is_failed){
-			printf("fail\n");
+			//printf("fail\n");
 			//リセット
 			current->is_failed=0;
 			current->selected_clause=&(current->structure.functor->clause_list);
@@ -105,9 +105,9 @@ retry:
 				return;
 			}
 		}else{
-			printf("success\n");
+			//printf("success\n");
 			if(current->selected_clause->clause->body.next!=NULL){
-				printf("subgoals*prepare\n");
+				//printf("subgoals*prepare\n");
 				//サブゴール有り
                 //箱の準備
 				Box* beginbox=current;
@@ -129,7 +129,7 @@ retry:
 				prev->success=endbox;
 				endbox->failure=prev;
 
-				printf("prepared.\n");
+				//printf("prepared.\n");
 			}
 
 			current=current->success;
@@ -176,7 +176,7 @@ void next_clause(Box* box,VariableTable** vt_callee){
 
     for(cl_ptr=box->selected_clause;cl_ptr->next!=NULL;cl_ptr=cl_ptr->next){
 		if(arity==cl_ptr->next->clause->arity){
-			printf("\nnext_clause*try\n");
+			//printf("\nnext_clause*try\n");
 			htstack_pushnew(&GlobalStack);
 			HistoryTable* history=htstack_toptable(GlobalStack);
 
@@ -187,19 +187,21 @@ void next_clause(Box* box,VariableTable** vt_callee){
 			Structure* portable1=structure_to_portable(&(box->structure),*(box->vartable));
 			Structure* portable2=structure_to_portable(&(cl_ptr->next->clause->head),*new_vartable);
 
+			/*
 			printf("unify start-----------\n");
 			structure_show(*portable1);
 			printf("\n");
 			structure_show(*portable2);
 			printf("unify end-------------\n");
+			*/
 
 			if(structure_unify(*portable1,*portable2,box->vartable,new_vartable,history)){
-				printf("\nnext_clause*success\n");
+				//printf("\nnext_clause*success\n");
 				box->selected_clause=cl_ptr->next;
 				*vt_callee=new_vartable;
 				return;
 			}else{
-				printf("\nnext_clause*fail\n");
+				//printf("\nnext_clause*fail\n");
 				htstack_pop(&GlobalStack);
 			}
 		}
@@ -292,6 +294,10 @@ int term_unify(Term* caller,Term* callee,VariableTable* v1,VariableTable* v2,His
 		return caller->value.integer==callee->value.integer;
 	}else if(caller->tag==TERM_STRUCTURE && callee->tag==TERM_STRUCTURE){
 		return structure_unify(*(caller->value.structure),*(callee->value.structure),v1,v2,h);
+	}else if(caller->tag==TERM_INTEGER && callee->tag==TERM_STRUCTURE){
+		return 0;
+	}else if(caller->tag==TERM_STRUCTURE && callee->tag==TERM_INTEGER){
+		return 0;
 	}else if(caller->tag==TERM_PPTERM && callee->tag==TERM_PPTERM
 			 && (*(*(caller->value.ppterm))).tag==TERM_UNBOUND && (*(*(callee->value.ppterm))).tag==TERM_UNBOUND){
 
