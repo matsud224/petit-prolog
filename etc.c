@@ -104,7 +104,7 @@ void term_show(Term* t){
 		printf("%s",t->value.variable->name);
 		break;
 	case TERM_PPTERM:
-		printf("<PPTERM>");
+		term_show(*(t->value.ppterm));
 		break;
 	default:
 		printf("<unknown>");
@@ -117,7 +117,7 @@ void list_show(Structure s){
 	//functorがドットであると仮定
 	Term second_arg=s.arguments.next->next->term;
 	term_show(&(s.arguments.next->term));
-
+	second_arg=*term_remove_ppterm(&second_arg);
 	if(second_arg.tag==TERM_STRUCTURE && strcmp(second_arg.value.structure->functor->name,".")==0){
 		//cdrもリスト
 		printf(","); list_show(*(second_arg.value.structure));

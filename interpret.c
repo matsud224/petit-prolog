@@ -281,7 +281,7 @@ int structure_unify(Structure s1,Structure s2,VariableTable* v1,VariableTable* v
 
 Term* term_remove_ppterm(Term* t){
 	if(t->tag==TERM_PPTERM){
-		return *(t->value.ppterm);
+		return term_remove_ppterm(*(t->value.ppterm));
 	}else{
 		return t;
 	}
@@ -294,9 +294,11 @@ int term_unify(Term* caller,Term* callee,VariableTable* v1,VariableTable* v2,His
 		return structure_unify(*(caller->value.structure),*(callee->value.structure),v1,v2,h);
 	}else if(caller->tag==TERM_PPTERM && callee->tag==TERM_PPTERM
 			 && (*(*(caller->value.ppterm))).tag==TERM_UNBOUND && (*(*(callee->value.ppterm))).tag==TERM_UNBOUND){
-		htable_addforward(h,caller->value.ppterm,*(caller->value.ppterm));
-		*(caller->value.ppterm)=*(callee->value.ppterm);
+
+		htable_addforward(h,callee->value.ppterm,*(callee->value.ppterm));
+		*(callee->value.ppterm)=*(caller->value.ppterm);
 		return 1;
+
 	}else if(caller->tag==TERM_PPTERM && (*(*(caller->value.ppterm))).tag==TERM_UNBOUND){
 		*(*caller->value.ppterm)=*term_remove_ppterm(callee);
 		htable_add(h,*(caller->value.ppterm));

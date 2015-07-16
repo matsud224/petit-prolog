@@ -166,3 +166,4 @@ Structure* structure_to_portable(Structure* s,VariableTable vt);
 Term* term_unwrap(Term* t,VariableTable vt);
 int structure_unify(Structure s1,Structure s2,VariableTable* v1,VariableTable* v2,HistoryTable* h);
 int term_unify(Term* t1,Term* t2,VariableTable* v1,VariableTable* v2,HistoryTable* h);
+Term* term_remove_ppterm(Term* t);
