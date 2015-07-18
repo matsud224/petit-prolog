@@ -3,6 +3,8 @@
 
 
 int main(int argc,char* argv[]){
+	gc_init();
+
     while(1){
         printf(">");
         interpret(stdin);

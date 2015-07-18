@@ -8,6 +8,7 @@ Token seen_token_stack[SEEN_TOKEN_STACK_SIZE]; //先読みした後に押し戻�
 int seen_token_count=0;
 
 
+
 Token token_get(FILE* fp){
 	int i;
 	char temp[IDENT_MAX_STR_LEN];
@@ -27,7 +28,7 @@ restart:
 		nextchar=getc(fp);
 	}
 
-	if(isalpha(nextchar) || nextchar=='_' || nextchar=='!'){
+	if(isalpha(nextchar) || nextchar=='_' || nextchar=='!' || nextchar=='-' || nextchar=='+' || nextchar=='*' || nextchar=='/'){
 		temp[0]=nextchar;
 		for(i=1;i<IDENT_MAX_STR_LEN;i++){
 			nextchar=getc(fp);
@@ -40,9 +41,13 @@ restart:
 		}
 		temp[i]='\0';
 
-		if(temp[0]=='!'){
+		if(temp[0]=='!' || temp[0]=='-' || temp[0]=='+' || temp[0]=='*' || temp[0]=='/'){
 			if(temp[1]!='\0'){
-				error("character `!' must be cut operator.");
+				if(temp[0]=='-' || temp[0]=='+'){
+					goto gentoken_int;
+				}else{
+					error("Can't tokenize.");
+				}
 			}
 			restok.tag=TOK_ATOM;
 			restok.value.atom=sym_get(temp);
@@ -71,6 +76,7 @@ restart:
 			}
 		}
 		temp[i]='\0';
+gentoken_int:
 		restok.tag=TOK_INTEGER;
 		restok.value.integer=atoi(temp);
 	}else if(nextchar=='%'){

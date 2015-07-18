@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <string.h>
-#include <malloc.h>
 #include "header.h"
 
 
@@ -16,19 +15,19 @@ void htable_add(HistoryTable* ht,Term* pterm){
 	//printf("~~~htable added.~~~\n");
 	//後入れ先出し
 	HistoryTable* temp=ptr->next;
-	ptr->next=malloc(sizeof(HistoryTable));
+	ptr->next=gc_malloc(sizeof(HistoryTable),F_HISTORYTABLE);
 	ptr->next->pterm=pterm;
 	ptr->next->prev=NULL;
 	ptr->next->next=temp;
 
 	return;
 }
-void htable_addforward(HistoryTable* ht,Term** ppterm,Term* prev){
+void htable_addforward(HistoryTable* ht,VariableTable* ppterm,Term* prev){
 	HistoryTable* ptr=ht;
 	//printf("~~~htable added(forward).~~~\n");
 	//後入れ先出し
 	HistoryTable* temp=ptr->next;
-	ptr->next=malloc(sizeof(HistoryTable));
+	ptr->next=gc_malloc(sizeof(HistoryTable),F_HISTORYTABLE);
 	ptr->next->ppterm=ppterm;
 	ptr->next->prev=prev;
 	ptr->next->next=temp;
@@ -47,9 +46,9 @@ void vartable_addvar(VariableTable *vl,Variable var){
 		ptr=ptr->next;
 	}
 
-	ptr->next=malloc(sizeof(VariableTable));
+	ptr->next=gc_malloc(sizeof(VariableTable),F_VARIABLETABLE);
 	ptr->next->variable=var;
-	ptr->next->termptr=malloc(sizeof(Term));
+	ptr->next->termptr=gc_malloc(sizeof(Term),F_TERM);
 	ptr->next->termptr->tag=TERM_UNBOUND;
 	ptr->next->next=NULL;
 
@@ -62,10 +61,12 @@ void vartable_show(VariableTable v1){
 	printf("\n-----------------\n");
 
 	while(ptr->next!=NULL){
-		printf("%s = ",ptr->next->variable->name);
-		term_show(ptr->next->termptr);
-		//printf("(%d)",ptr->next->value.ref_bound);
-		printf("\n");
+		if(ptr->next->variable->name[0]!='%'){
+			printf("%s = ",ptr->next->variable->name);
+			term_show(ptr->next->termptr);
+			//printf("(%d)",ptr->next->value.ref_bound);
+			printf("\n");
+		}
 
 		ptr=ptr->next;
 	}
@@ -104,7 +105,7 @@ void term_show(Term* t){
 		printf("%s",t->value.variable->name);
 		break;
 	case TERM_PPTERM:
-		term_show(*(t->value.ppterm));
+		term_show(t->value.ppterm->termptr);
 		break;
 	default:
 		printf("<unknown>");
@@ -115,24 +116,24 @@ void term_show(Term* t){
 
 void list_show(Structure s){
 	//functorがドットであると仮定
-	Term second_arg=s.arguments.next->next->term;
-	term_show(&(s.arguments.next->term));
-	second_arg=*term_remove_ppterm(&second_arg);
-	if(second_arg.tag==TERM_STRUCTURE && strcmp(second_arg.value.structure->functor->name,".")==0){
+	Term* second_arg=s.arguments->next->next->term;
+	term_show(s.arguments->next->term);
+	second_arg=term_remove_ppterm(second_arg);
+	if(second_arg->tag==TERM_STRUCTURE && strcmp(second_arg->value.structure->functor->name,".")==0){
 		//cdrもリスト
-		printf(","); list_show(*(second_arg.value.structure));
-	}else if(second_arg.tag==TERM_STRUCTURE && strcmp(second_arg.value.structure->functor->name,"[]")==0 && structure_arity(*(second_arg.value.structure))==0){
+		printf(","); list_show(*(second_arg->value.structure));
+	}else if(second_arg->tag==TERM_STRUCTURE && strcmp(second_arg->value.structure->functor->name,"[]")==0 && structure_arity(second_arg->value.structure)==0){
 		// [] が来た　→　リスト終端
 		return;
 	}else{
 		//printf("<<tag:%d name:>>\n",second_arg.tag);
-		printf("|"); term_show(&(s.arguments.next->next->term));
+		printf("|"); term_show(s.arguments->next->next->term);
 	}
 
 }
 
 void structure_show(Structure s){
-	TermList* ptr=&(s.arguments);
+	TermList* ptr=s.arguments;
 
 	if(strcmp(s.functor->name,".")==0){
 		//リスト
@@ -148,19 +149,19 @@ void structure_show(Structure s){
 
 	printf("(");
 	while(ptr->next!=NULL){
-		term_show(&(ptr->next->term));
+		term_show(ptr->next->term);
 		ptr=ptr->next;
 		if(ptr->next!=NULL){printf(", ");}
 	}
 	printf(")");
 }
 
-Term** vartable_findvar(VariableTable vl,Variable var){
-	VariableTable* ptr=&vl;
+VariableTable* vartable_findvar(VariableTable* vl,Variable var){
+	VariableTable* ptr=vl;
 
 	while(ptr->next!=NULL){
 		if(ptr->next->variable==var){
-			return &(ptr->next->termptr);
+			return ptr->next;
 		}
 		ptr=ptr->next;
 	}
@@ -179,14 +180,15 @@ void htstack_pushnew(HTStack *hts){
 	while(ptr->next!=NULL){
 		ptr=ptr->next;
 	}
-	ptr->next=malloc(sizeof(HTStack));
-	ptr->next->htable.next=NULL;
+	ptr->next=gc_malloc(sizeof(HTStack),F_HTSTACK);
+	ptr->next->htable=gc_malloc(sizeof(HistoryTable),F_HISTORYTABLE);
+	ptr->next->htable->next=NULL;
 	ptr->next->next=NULL;
 
 	return;
 }
 
-void htstack_push(HTStack *hts,HistoryTable htable){
+void htstack_push(HTStack *hts,HistoryTable* htable){
 	HTStack* ptr=hts;
 
 	//printf("{{push}}\n");
@@ -195,7 +197,7 @@ void htstack_push(HTStack *hts,HistoryTable htable){
 		ptr=ptr->next;
 	}
 
-	ptr->next=malloc(sizeof(HTStack));
+	ptr->next=gc_malloc(sizeof(HTStack),F_HTSTACK);
 	ptr->next->htable=htable;
 	ptr->next->next=NULL;
 	return;
@@ -217,13 +219,13 @@ void htstack_pop(HTStack *hts){
 	if(hts->next==NULL){ return;}
 
 	//巻き戻し
-	HistoryTable* hptr=&(ptr->htable);
+	HistoryTable* hptr=ptr->htable;
 	while(hptr->next!=NULL){
 		if(hptr->next->prev==NULL){
 			hptr->next->pterm->tag=TERM_UNBOUND;
 			//printf("1 unbind\n");
 		}else{
-			(*(hptr->next->ppterm))=hptr->next->prev;
+			hptr->next->ppterm->termptr=hptr->next->prev;
 			//printf("redo:pointer\n");
 		}
 
@@ -243,13 +245,13 @@ HistoryTable* htstack_toptable(HTStack hts){
 		ptr=ptr->next;
 	}
 
-	return &(ptr->htable);
+	return ptr->htable;
 }
 
 
-int structure_arity(Structure s){
+int structure_arity(Structure* s){
 	int arity=0;
-	TermList* t_ptr=&(s.arguments);
+	TermList* t_ptr=s->arguments;
 	while(t_ptr->next!=NULL){
 		arity++;
 		t_ptr=t_ptr->next;

@@ -17,17 +17,16 @@
 			| <exp>
 			| <variable> is <structure>
 			| <structure> = <structure>
-			| <structure>
 
 <term> ::= <integer> | <variable> | <structure>
 <term-list> ::= <term>
 			| <term-list> , <term>
 
 
-<
 
-<exp> ::= <exp_term> + <exp_term>
 
-<exp_term> ::= <factor> {[* /] <factor> }
+<exp> ::= <exp_term> {[+ -] <exp_term> }
+
+<exp_term> ::= <factor> {[* / mod] <factor> }
 
 <factor> ::= <integer> | <variable> | "(" <exp> ")"

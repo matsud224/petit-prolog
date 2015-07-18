@@ -36,6 +36,9 @@
 		<Unit filename="etc.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="gc.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="header.h" />
 		<Unit filename="interpret.c">
 			<Option compilerVar="CC" />

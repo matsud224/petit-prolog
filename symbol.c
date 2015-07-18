@@ -3,7 +3,7 @@
 #include "header.h"
 
 
-SymbolTable symtable[SYMTABLE_LEN]={{NULL,NULL,{NULL,NULL}}};
+SymbolTable symtable[SYMTABLE_LEN]={{NULL,NULL,NULL}};
 int anonvar_id=0;
 
 int sym_hash(char* str){
@@ -27,8 +27,11 @@ SymbolTable* sym_get(char* str){
 		}
 	}
 	//見つからなかった...
-	searchptr->next=malloc(sizeof(SymbolTable));
-	searchptr->next->name=malloc(strlen(str)+1);
+	searchptr->next=gc_malloc(sizeof(SymbolTable),F_SYMBOLTABLE);
+	searchptr->next->next=NULL;
+	searchptr->next->clause_list=gc_malloc(sizeof(ClauseList),F_CLAUSELIST);
+	searchptr->next->clause_list->next=NULL;
+	searchptr->next->name=gc_malloc(strlen(str)+1,F_CHARARRAY);
 	strcpy(searchptr->next->name,str);
 	return searchptr->next;
 }
