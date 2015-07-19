@@ -1,27 +1,35 @@
 //Mark Sweep GC
 #include <malloc.h>
 #include <stdio.h>
+#include <string.h>
 #include "header.h"
-#define CHANK_SIZE (sizeof(char)*512)
+#define CHANK_SIZE (sizeof(char)*4096)
 
 GCHeader freelist;
 ChankList chanklist;
 
+size_t allocate=0;
 
 void gc_init(){
 	freelist.fieldsize=0;
 	freelist.fieldtag=F_NULL;
 	freelist.next=NULL;
 	chanklist.next=NULL;
-
+	gc_chankallocate();
 }
 
 void gc_mark_sub(void* m){
 	GCHeader* mem;
-	if(m!=NULL){
-		mem=((GCHeader*)m)-1;
-		mem->marked=1;
+	if(m==NULL){
+		return;
 	}
+	mem=((GCHeader*)m)-1;
+	if(mem->marked==0){
+		mem->marked=1;
+	}else{
+		return;
+	}
+	//printf("tag: %d\n",mem->fieldtag);
 	switch(mem->fieldtag){
 	case F_HISTORYTABLE:
 		gc_mark_sub(((HistoryTable*)m)->next);
@@ -51,7 +59,7 @@ void gc_mark_sub(void* m){
 		break;
 	case F_HTSTACK:
 		gc_mark_sub(((HTStack*)m)->next);
-		gc_mark_sub(&(((HTStack*)m)->htable));
+		gc_mark_sub(((HTStack*)m)->htable);
 		break;
 	case F_CLAUSE:
 		gc_mark_sub(((Clause*)m)->head);
@@ -99,33 +107,67 @@ void gc_mark_sub(void* m){
 	case F_QUESTION:
 		gc_mark_sub(((Question*)m)->body);
 		break;
+	case F_CHARARRAY:
+		break;
+	default:
+		error("invalid GCHeader");printf("%d\n",mem->fieldtag);
+		break;
 	}
 }
 
 void gc_mark(){
 	//シンボルテーブルを巡る
-	SymbolTable* ptr=symtable;
-	while(ptr->next!=NULL){
-		gc_mark_sub(ptr->next);
-		ptr=ptr->next;
+	int i;
+	for(i=0;i<SYMTABLE_LEN;i++){
+		//まず不要アイテムを削除
+		SymbolTable* ptr=&symtable[i];
+		while(ptr->next!=NULL){
+			if(ptr->next->clause_list->next==NULL && ptr->next->next!=NULL){
+				ptr->next=ptr->next->next;
+			}
+			ptr=ptr->next;
+		}
+	}
+	for(i=0;i<SYMTABLE_LEN;i++){
+		SymbolTable* ptr=&symtable[i];
+		while(ptr->next!=NULL){
+			gc_mark_sub(ptr->next);
+			ptr=ptr->next;
+		}
 	}
 
     return;
 }
 
+size_t gc_freesize(){
+	GCHeader* ptr=&freelist;
+	size_t size=0;
+	while(ptr->next!=NULL){
+		size+=ptr->next->fieldsize;
+		ptr=ptr->next;
+	}
+	return size;
+}
+
 void gc_sweep(){
 	ChankList* clist=&chanklist;
     GCHeader* sweeping;
+
+    size_t sweeped=0;
+    size_t before=gc_freesize();
+
     freelist.next=NULL;
 	int first;
     while(clist->next!=NULL){
 		sweeping=(GCHeader*)(clist->next->chank);
 		first=1;
-		while(sweeping<(GCHeader*)(clist->next->chank+CHANK_SIZE)){
-			printf("sweep size = %d\n",sweeping->fieldsize);
+		while(sweeping<((GCHeader*)(clist->next->chank+CHANK_SIZE))){
+			//printf("sweep size = %d\n",sweeping->fieldsize);
+
 			if(sweeping->marked==1){
 				sweeping->marked=0;
 			}else{
+				sweeped+=sweeping->fieldsize;
 				if(!first && freelist.next!=NULL && sweeping==(GCHeader*)(((char*)(freelist.next+1))+sizeof(char)*freelist.next->fieldsize)){
 					freelist.next->fieldsize+=sweeping->fieldsize+sizeof(GCHeader);
 				}else{
@@ -139,6 +181,8 @@ void gc_sweep(){
 
 		clist=clist->next;
     }
+
+    printf("sweep finished. %d -> %d (%d)\n",before,sweeped+before,allocate);
 }
 
 void gc_freelist_show(){
@@ -156,15 +200,21 @@ void gc_freelist_show(){
 }
 
 void* gc_malloc(size_t size,FieldTag tag){
-	GCHeader* hptr=&freelist;
+	GCHeader* hptr;
 	int try_count=0;
 
 alloc_retry:
+	hptr=&freelist;
+
+//printf("----demand: %d----\n",size);
+
+	//gc_freelist_show();
 	if(CHANK_SIZE-sizeof(GCHeader)<size){
 		error("allocation failed: larger than CHANK_SIZE.");
 	}
 
 	while(hptr->next!=NULL){
+		//printf("	found: %d\n",hptr->next->fieldsize);
 		if(hptr->next->fieldsize>=size){
 			GCHeader* result=hptr->next+1;
 			if(hptr->next->fieldsize>size+sizeof(GCHeader)){
@@ -175,24 +225,28 @@ alloc_retry:
 				hptr->next->fieldsize=size;
 				hptr->next->marked=0;
 				hptr->next->fieldtag=tag;
-				hptr->next=(GCHeader*)((char*)(hptr->next+1)+(sizeof(char) * size));
+				hptr->next=(GCHeader*)(((char*)result)+size);
 				hptr->next->fieldsize=beforesize-size-sizeof(GCHeader);
+				hptr->next->marked=0;
 				hptr->next->next=beforenext;
 			}else{
 				hptr->next->marked=0;
 				hptr->next->fieldtag=tag;
 				hptr->next=hptr->next->next;
 			}
+			memset(result,0,size);
 
 			return result;
 		}
 		hptr=hptr->next;
 	}
+	//printf("not found\n");
+
 
 	if(try_count==0){
 		try_count=1;
-		gc_mark();
-		gc_sweep();
+		//gc_mark();
+		//gc_sweep();
 		goto alloc_retry;
 	}
 
@@ -215,18 +269,26 @@ void gc_chankallocate(){
 		error("memory allocation failed.");
 	}
 
+
 	GCHeader* hptr=&freelist;
 	while(hptr->next!=NULL){
 		hptr=hptr->next;
 	}
-
+/*
 	hptr->next=(GCHeader*)(ptr->next->chank);
 	hptr->next->fieldsize=CHANK_SIZE-sizeof(GCHeader);
 	hptr->next->marked=0;
-
 	hptr->next->next=NULL;
+	*/
+	((GCHeader*)(ptr->next->chank))->next=freelist.next;
+	((GCHeader*)(ptr->next->chank))->fieldsize=CHANK_SIZE-sizeof(GCHeader);
+	((GCHeader*)(ptr->next->chank))->marked=0;
+	freelist.next=((GCHeader*)(ptr->next->chank));
 
-	printf("GC:allocated new chank.\n");
+	allocate+=CHANK_SIZE;
+
+	//printf("GC:allocated new chank.\n");
+	//gc_freelist_show();
 
 	return;
 }

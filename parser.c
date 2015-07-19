@@ -59,6 +59,7 @@ StructureList* parse_structure_list(FILE* fp){
     while(1){
         st_terminal->next=gc_malloc(sizeof(StructureList),F_STRUCTURELIST);
         st_terminal->next->structure=parse_structure(fp);
+        st_terminal->next->next=NULL;
         st_terminal=st_terminal->next;
         st_terminal->next=NULL;
         gottoken=token_get(fp);

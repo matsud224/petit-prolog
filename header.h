@@ -199,8 +199,10 @@ Term* term_remove_ppterm(Term* t);
 
 //gc.c
 void gc_init();
+void gc_mark_sub(void* m);
 void gc_mark();
 void gc_sweep();
-void* gc_malloc();
+void* gc_malloc(size_t size,FieldTag tag);
 void gc_freelist_show();
+size_t gc_freesize();
 void gc_chankallocate();
