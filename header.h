@@ -145,6 +145,7 @@ typedef struct _htstack{
 typedef struct _box{
 	struct _box* success;
 	struct _box* failure;
+	struct _box* brother;
 	ClauseList* selected_clause;
 	VariableTable* vartable;
 	Structure* structure;
@@ -197,7 +198,7 @@ void interpret(FILE* fp);
 void interpret_clause(Clause* clause);
 void interpret_question(Question* question);
 void execute(Box* current);
-void next_clause(Box* box,VariableTable** vt_callee);
+VariableTable* next_clause(Box* box);
 void vartable_from_clause(VariableTable* vt,Clause* c);
 void vartable_from_question(VariableTable* vt,Question* q);
 void vartable_from_structure(VariableTable* vt,Structure* s);

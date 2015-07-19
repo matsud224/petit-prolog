@@ -50,6 +50,7 @@ Box* box_get(){
 	Box* b=gc_malloc(sizeof(Box),F_BOX,&GCMEMSTACK);
 	b->failure=NULL;
 	b->success=NULL;
+	b->brother=NULL;
 	b->is_begin=0;
 	b->is_end=0;
 	b->is_failed=0;
@@ -84,10 +85,12 @@ void interpret_question(Question* question){
 		current->selected_clause=current->structure->functor->clause_list;
 		current->vartable=vartable;
 		prev->success=current;
+		prev->brother=current;
 		current->failure=prev;
 		prev=current;
     }
     prev->success=endbox;
+    prev->brother=endbox;
 	endbox->failure=prev;
 	endbox->vartable=vartable;
 
@@ -131,10 +134,20 @@ retry:
 			continue;
 		}
 
-		next_clause(current,&callee_new_vartable);
+		callee_new_vartable=next_clause(current);
+
+		/*
+		vartable_show(*current->vartable);
+		structure_show(*current->structure);printf("\n");
+		if(callee_new_vartable==NULL){
+			printf("(NULL)\n");
+		}else{
+			vartable_show(*callee_new_vartable);
+		}*/
 
 		if(current->is_failed){
 fail_process:
+			//printf("**FAIL**\n");
 			//リセット
 			current->is_failed=0;
 			current->selected_clause=current->structure->functor->clause_list;
@@ -148,11 +161,12 @@ fail_process:
 				return;
 			}
 		}else{
+			//printf("**SUCCESS**\n");
 			if(current->selected_clause->clause->body->next!=NULL){
 				//サブゴール有り
                 //箱の準備
 				Box* beginbox=current;
-				Box* endbox=current->success;
+				Box* endbox=current->brother;
 				Box* prev=beginbox;
 				Box* curr_box;
 
@@ -163,12 +177,16 @@ fail_process:
 					curr_box->selected_clause=curr_box->structure->functor->clause_list;
 					curr_box->vartable=callee_new_vartable;
 					prev->success=curr_box;
+					if(prev!=beginbox){prev->brother=curr_box;}
 					curr_box->failure=prev;
 					prev=curr_box;
 				}
 
 				prev->success=endbox;
+				prev->brother=endbox;
 				endbox->failure=prev;
+			}else{
+				current->success=current->brother;
 			}
 
 			current=current->success;
@@ -207,13 +225,13 @@ fail_process:
 }
 
 
-void next_clause(Box* box,VariableTable** vt_callee){
+VariableTable* next_clause(Box* box){
 	gcmemstack_pushnew(&GCMEMSTACK);
 
 	//すでに失敗しているとき
-	if(box->is_failed){gcmemstack_pop(&GCMEMSTACK);return;}
+	if(box->is_failed){gcmemstack_pop(&GCMEMSTACK);return NULL;}
 
-	if(!(box->selected_clause)){box->is_failed=1;gcmemstack_pop(&GCMEMSTACK);return;}
+	if(!(box->selected_clause)){box->is_failed=1;gcmemstack_pop(&GCMEMSTACK);return NULL;}
 
 	ClauseList* cl_ptr;
 
@@ -233,9 +251,9 @@ void next_clause(Box* box,VariableTable** vt_callee){
 
 			if(structure_unify(portable1,portable2,box->vartable,new_vartable,history)){
 				box->selected_clause=cl_ptr->next;
-				*vt_callee=new_vartable;
+				gcmemstack_returnptr(new_vartable,&GCMEMSTACK);
 				gcmemstack_pop(&GCMEMSTACK);
-				return;
+				return new_vartable;
 			}else{
 				htstack_pop(&GlobalStack);
 			}
@@ -247,7 +265,7 @@ void next_clause(Box* box,VariableTable** vt_callee){
 
 	gcmemstack_pop(&GCMEMSTACK);
 
-	return;
+	return NULL;
 }
 
 void vartable_from_clause(VariableTable* vt,Clause* c){
