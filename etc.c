@@ -11,47 +11,55 @@ void error(char* msg){
 
 
 void htable_add(HistoryTable* ht,Term* pterm){
+	gcmemstack_pushnew(&GCMEMSTACK);
 	HistoryTable* ptr=ht;
 	//printf("~~~htable added.~~~\n");
 	//後入れ先出し
 	HistoryTable* temp=ptr->next;
-	ptr->next=gc_malloc(sizeof(HistoryTable),F_HISTORYTABLE);
+	ptr->next=gc_malloc(sizeof(HistoryTable),F_HISTORYTABLE,&GCMEMSTACK);
 	ptr->next->pterm=pterm;
 	ptr->next->prev=NULL;
 	ptr->next->next=temp;
-
+	gcmemstack_pop(&GCMEMSTACK);
 	return;
 }
 void htable_addforward(HistoryTable* ht,VariableTable* ppterm,Term* prev){
+	gcmemstack_pushnew(&GCMEMSTACK);
+
 	HistoryTable* ptr=ht;
 	//printf("~~~htable added(forward).~~~\n");
 	//後入れ先出し
+
 	HistoryTable* temp=ptr->next;
-	ptr->next=gc_malloc(sizeof(HistoryTable),F_HISTORYTABLE);
+	ptr->next=gc_malloc(sizeof(HistoryTable),F_HISTORYTABLE,&GCMEMSTACK);
 	ptr->next->ppterm=ppterm;
 	ptr->next->prev=prev;
 	ptr->next->next=temp;
-
+	gcmemstack_pop(&GCMEMSTACK);
 	return;
 }
 
 void vartable_addvar(VariableTable *vl,Variable var){
+	gcmemstack_pushnew(&GCMEMSTACK);
+
 	VariableTable* ptr=vl;
 
 	while(ptr->next!=NULL){
 		if(ptr->next->variable==var){
 			//重複を見つけた
+			gcmemstack_pop(&GCMEMSTACK);
 			return;
 		}
 		ptr=ptr->next;
 	}
 
-	ptr->next=gc_malloc(sizeof(VariableTable),F_VARIABLETABLE);
+	ptr->next=gc_malloc(sizeof(VariableTable),F_VARIABLETABLE,&GCMEMSTACK);
 	ptr->next->variable=var;
-	ptr->next->termptr=gc_malloc(sizeof(Term),F_TERM);
+
+	ptr->next->termptr=gc_malloc(sizeof(Term),F_TERM,&GCMEMSTACK);
 	ptr->next->termptr->tag=TERM_UNBOUND;
 	ptr->next->next=NULL;
-
+	gcmemstack_pop(&GCMEMSTACK);
 	return;
 }
 
@@ -173,33 +181,35 @@ VariableTable* vartable_findvar(VariableTable* vl,Variable var){
 
 
 void htstack_pushnew(HTStack *hts){
+	gcmemstack_pushnew(&GCMEMSTACK);
 	HTStack* ptr=hts;
-
 	//printf("{{pushnew}}\n");
 
 	while(ptr->next!=NULL){
 		ptr=ptr->next;
 	}
-	ptr->next=gc_malloc(sizeof(HTStack),F_HTSTACK);
-	ptr->next->htable=gc_malloc(sizeof(HistoryTable),F_HISTORYTABLE);
+	ptr->next=gc_malloc(sizeof(HTStack),F_HTSTACK,&GCMEMSTACK);
+	ptr->next->htable=gc_malloc(sizeof(HistoryTable),F_HISTORYTABLE,&GCMEMSTACK);
 	ptr->next->htable->next=NULL;
 	ptr->next->next=NULL;
-
+	gcmemstack_pop(&GCMEMSTACK);
 	return;
 }
 
 void htstack_push(HTStack *hts,HistoryTable* htable){
+	gcmemstack_pushnew(&GCMEMSTACK);
 	HTStack* ptr=hts;
-
 	//printf("{{push}}\n");
 
 	while(ptr->next!=NULL){
 		ptr=ptr->next;
 	}
 
-	ptr->next=gc_malloc(sizeof(HTStack),F_HTSTACK);
+	ptr->next=gc_malloc(sizeof(HTStack),F_HTSTACK,&GCMEMSTACK);
 	ptr->next->htable=htable;
 	ptr->next->next=NULL;
+
+	gcmemstack_pop(&GCMEMSTACK);
 	return;
 }
 

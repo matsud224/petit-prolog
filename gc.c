@@ -8,7 +8,109 @@
 GCHeader freelist;
 ChankList chanklist;
 
+
+GCMemoryStack GCMEMSTACK;
+
 size_t allocate=0;
+
+void gcmemlist_add(GCMemoryList* ml,void* mem){
+	GCMemoryList* ptr=ml;
+
+	GCMemoryList* temp=ptr->next;
+	ptr->next=malloc(sizeof(GCMemoryList));
+	ptr->next->memptr=mem;
+	ptr->next->next=temp;
+
+	return;
+}
+
+GCMemoryList* gcmemstack_top(GCMemoryStack* gcms){
+	GCMemoryStack* ptr=gcms;
+	while(ptr->next!=NULL){
+		ptr=ptr->next;
+	}
+
+	return &(ptr->memlist);
+}
+
+void gcmemstack_pushnew(GCMemoryStack *gcms){
+	GCMemoryStack* ptr=gcms;
+
+
+	while(ptr->next!=NULL){
+		ptr=ptr->next;
+	}
+	ptr->next=malloc(sizeof(GCMemoryStack));
+	ptr->next->memlist.next=NULL;
+	ptr->next->next=NULL;
+
+	return;
+}
+
+//メモリ確保し、それを返り値として返却する場合に、それがGCの対象とならないように呼び出し元のスタックフレームに登録
+void gcmemstack_returnptr(void* mem,GCMemoryStack *gcms){
+	GCMemoryStack* ptr=gcms;
+	GCMemoryStack* prev=NULL;
+	while(ptr->next!=NULL){
+		prev=ptr;
+		ptr=ptr->next;
+	}
+
+	if(gcms->next==NULL){ return;}
+
+	if(ptr!=gcms){
+		//printf("set returnptr: %p\n",mem);
+		gcmemlist_add(&(prev->memlist),mem);
+	}
+
+	return;
+}
+
+void gcmemstack_pop(GCMemoryStack *gcms){
+	GCMemoryStack* ptr=gcms;
+	GCMemoryStack* prev=NULL;
+	while(ptr->next!=NULL){
+		prev=ptr;
+		ptr=ptr->next;
+	}
+
+	if(gcms->next==NULL){return;}
+
+	if(prev!=NULL){
+		GCMemoryList* lptr=prev->next->memlist.next;
+		while(lptr!=NULL){
+			GCMemoryList* temp=lptr->next;
+			free(lptr);
+			lptr=temp;
+		}
+		free(prev->next);
+		prev->next=NULL;
+	}
+
+	return;
+}
+
+int gcmemstack_size(GCMemoryStack *gcms){
+	GCMemoryStack* ptr=gcms;
+	int size=0;
+	while(ptr->next!=NULL){
+		size++;
+		ptr=ptr->next;
+	}
+
+	return size;
+}
+
+int gcmemlist_size(GCMemoryList *gcml){
+	GCMemoryList* ptr=gcml;
+	int size=0;
+	while(ptr->next!=NULL){
+		size++;
+		ptr=ptr->next;
+	}
+
+	return size;
+}
 
 void gc_init(){
 	freelist.fieldsize=0;
@@ -25,6 +127,7 @@ void gc_mark_sub(void* m){
 	}
 	mem=((GCHeader*)m)-1;
 	if(mem->marked==0){
+		//printf("marked: %p\n",m);
 		mem->marked=1;
 	}else{
 		return;
@@ -119,22 +222,31 @@ void gc_mark(){
 	//シンボルテーブルを巡る
 	int i;
 	for(i=0;i<SYMTABLE_LEN;i++){
-		//まず不要アイテムを削除
-		SymbolTable* ptr=&symtable[i];
-		while(ptr->next!=NULL){
-			if(ptr->next->clause_list->next==NULL && ptr->next->next!=NULL){
-				ptr->next=ptr->next->next;
-			}
-			ptr=ptr->next;
-		}
-	}
-	for(i=0;i<SYMTABLE_LEN;i++){
 		SymbolTable* ptr=&symtable[i];
 		while(ptr->next!=NULL){
 			gc_mark_sub(ptr->next);
 			ptr=ptr->next;
 		}
 	}
+
+	//boxを巡る
+	if(CURRENT_BEGINBOX!=NULL){
+		gc_mark_sub(CURRENT_BEGINBOX);
+	}
+
+	//スタックを巡る
+	GCMemoryStack* gptr=&GCMEMSTACK;
+	while(gptr->next!=NULL){
+		GCMemoryList* lptr=&(gptr->next->memlist);
+		while(lptr->next!=NULL){
+			gc_mark_sub(lptr->next->memptr);
+			lptr=lptr->next;
+		}
+		gptr=gptr->next;
+	}
+
+	//HistoryStackを巡る
+	gc_mark_sub(GlobalStack.next);
 
     return;
 }
@@ -167,10 +279,13 @@ void gc_sweep(){
 			if(sweeping->marked==1){
 				sweeping->marked=0;
 			}else{
+				//printf("sweeped: %p  ",sweeping+1);
 				sweeped+=sweeping->fieldsize;
 				if(!first && freelist.next!=NULL && sweeping==(GCHeader*)(((char*)(freelist.next+1))+sizeof(char)*freelist.next->fieldsize)){
+					//printf("@\n");
 					freelist.next->fieldsize+=sweeping->fieldsize+sizeof(GCHeader);
 				}else{
+					//printf("*\n");
 					sweeping->next=freelist.next;
 					freelist.next=sweeping;
 				}
@@ -182,7 +297,7 @@ void gc_sweep(){
 		clist=clist->next;
     }
 
-    printf("sweep finished. %d -> %d (%d)\n",before,sweeped+before,allocate);
+    printf("\nGC:sweep finished. %d -> %d (%d)\n",before,sweeped+before,allocate);
 }
 
 void gc_freelist_show(){
@@ -199,7 +314,7 @@ void gc_freelist_show(){
 	return;
 }
 
-void* gc_malloc(size_t size,FieldTag tag){
+void* gc_malloc(size_t size,FieldTag tag,GCMemoryStack* gcms){
 	GCHeader* hptr;
 	int try_count=0;
 
@@ -235,6 +350,10 @@ alloc_retry:
 				hptr->next=hptr->next->next;
 			}
 			memset(result,0,size);
+
+			gcmemlist_add(gcmemstack_top(gcms),result);
+
+			//printf("allocate: %p\n",result);
 
 			return result;
 		}
@@ -287,7 +406,7 @@ void gc_chankallocate(){
 
 	allocate+=CHANK_SIZE;
 
-	//printf("GC:allocated new chank.\n");
+	printf("\nGC:allocated new chank.\n");
 	//gc_freelist_show();
 
 	return;

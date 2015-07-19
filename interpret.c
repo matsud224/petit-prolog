@@ -3,9 +3,14 @@
 
 
 HTStack GlobalStack;
+Box* CURRENT_BEGINBOX;
 
 void interpret(FILE* fp){
+	gcmemstack_pushnew(&GCMEMSTACK);
+
+	//printf("beforesize = %d\n",gcmemlist_size(gcmemstack_top(&GCMEMSTACK)));
     Program* p = parse_program(fp);
+    //printf("aftersize = %d\n",gcmemlist_size(gcmemstack_top(&GCMEMSTACK)));
     Program* ptr=p;
 
     while(ptr->next!=NULL){
@@ -20,43 +25,55 @@ void interpret(FILE* fp){
 
 		ptr=ptr->next;
     }
+    gcmemstack_pop(&GCMEMSTACK);
 }
 
 void interpret_clause(Clause* clause){
+	gcmemstack_pushnew(&GCMEMSTACK);
 	clause->arity=structure_arity(clause->head);
-
 	//節の登録を行う
 	SymbolTable* syminfo=clause->head->functor;
 	ClauseList* cl_ptr=syminfo->clause_list;
 	while(cl_ptr->next!=NULL){
 		cl_ptr=cl_ptr->next;
 	}
-	cl_ptr->next=gc_malloc(sizeof(ClauseList),F_CLAUSELIST);
+	cl_ptr->next=gc_malloc(sizeof(ClauseList),F_CLAUSELIST,&GCMEMSTACK);
 	cl_ptr->next->next=NULL;
 	cl_ptr->next->clause=clause;
+
+	gcmemstack_pop(&GCMEMSTACK);
 }
 
 //Boxのメモリを確保し、それへのポインタを返します
 Box* box_get(){
-	Box* b=gc_malloc(sizeof(Box),F_BOX);
+	gcmemstack_pushnew(&GCMEMSTACK);
+	Box* b=gc_malloc(sizeof(Box),F_BOX,&GCMEMSTACK);
 	b->failure=NULL;
 	b->success=NULL;
 	b->is_begin=0;
 	b->is_end=0;
 	b->is_failed=0;
 	b->selected_clause=NULL;
+	gcmemstack_returnptr(b,&GCMEMSTACK);
+	gcmemstack_pop(&GCMEMSTACK);
 	return b;
 }
 
 void interpret_question(Question* question){
+	gcmemstack_pushnew(&GCMEMSTACK);
 	GlobalStack.next=NULL;
+
+
 	//箱の準備
 	Box* beginbox=box_get(); beginbox->is_begin=1;
+
+	CURRENT_BEGINBOX=beginbox;
+
 	Box* endbox=box_get(); endbox->is_end=1;
 	Box* prev=beginbox;
 	Box* current;
 
-	VariableTable* vartable=gc_malloc(sizeof(VariableTable),F_VARIABLETABLE);
+	VariableTable* vartable=gc_malloc(sizeof(VariableTable),F_VARIABLETABLE,&GCMEMSTACK);
 	vartable->next=NULL;
 	vartable_from_question(vartable,question);
 
@@ -75,9 +92,15 @@ void interpret_question(Question* question){
 	endbox->vartable=vartable;
 
 	execute(beginbox->success);
+
+	CURRENT_BEGINBOX=NULL;
+	GlobalStack.next=NULL;
+
+	gcmemstack_pop(&GCMEMSTACK);
 }
 
 void execute(Box* current){
+	gcmemstack_pushnew(&GCMEMSTACK);
 retry:
 
 	while(!(current->is_end)){
@@ -121,6 +144,7 @@ fail_process:
 
 			if(current->is_begin){
 				printf("\nno.\n");
+				gcmemstack_pop(&GCMEMSTACK);
 				return;
 			}
 		}else{
@@ -161,7 +185,7 @@ fail_process:
 			ans=getc(stdin);
 		}
 		if(ans=='y'){
-			printf("\nyes.\n"); return;
+			printf("\nyes.\n"); gcmemstack_pop(&GCMEMSTACK);return;
 		}else{
 			current=current->failure;
 
@@ -169,21 +193,27 @@ fail_process:
 
 			if(current->is_begin){
 				printf("\nno.\n");
+				gcmemstack_pop(&GCMEMSTACK);
 				return;
 			}
+
 			goto retry;
 		}
 	}else{
 		printf("\nyes.\n");
 	}
+
+	gcmemstack_pop(&GCMEMSTACK);
 }
 
 
 void next_clause(Box* box,VariableTable** vt_callee){
-	//すでに失敗しているとき
-	if(box->is_failed){return;}
+	gcmemstack_pushnew(&GCMEMSTACK);
 
-	if(!(box->selected_clause)){box->is_failed=1;return;}
+	//すでに失敗しているとき
+	if(box->is_failed){gcmemstack_pop(&GCMEMSTACK);return;}
+
+	if(!(box->selected_clause)){box->is_failed=1;gcmemstack_pop(&GCMEMSTACK);return;}
 
 	ClauseList* cl_ptr;
 
@@ -194,7 +224,7 @@ void next_clause(Box* box,VariableTable** vt_callee){
 			htstack_pushnew(&GlobalStack);
 			HistoryTable* history=htstack_toptable(GlobalStack);
 
-			VariableTable* new_vartable=gc_malloc(sizeof(VariableTable),F_VARIABLETABLE);
+			VariableTable* new_vartable=gc_malloc(sizeof(VariableTable),F_VARIABLETABLE,&GCMEMSTACK);
 			new_vartable->next=NULL;
 			vartable_from_clause(new_vartable,cl_ptr->next->clause);
 
@@ -204,6 +234,7 @@ void next_clause(Box* box,VariableTable** vt_callee){
 			if(structure_unify(portable1,portable2,box->vartable,new_vartable,history)){
 				box->selected_clause=cl_ptr->next;
 				*vt_callee=new_vartable;
+				gcmemstack_pop(&GCMEMSTACK);
 				return;
 			}else{
 				htstack_pop(&GlobalStack);
@@ -214,10 +245,13 @@ void next_clause(Box* box,VariableTable** vt_callee){
 
 	box->is_failed=1;
 
+	gcmemstack_pop(&GCMEMSTACK);
+
 	return;
 }
 
 void vartable_from_clause(VariableTable* vt,Clause* c){
+	gcmemstack_pushnew(&GCMEMSTACK);
 	StructureList* sl_ptr=c->body;
 
 	vartable_from_structure(vt,c->head);
@@ -227,10 +261,11 @@ void vartable_from_clause(VariableTable* vt,Clause* c){
 
 		sl_ptr=sl_ptr->next;
 	}
-
+	gcmemstack_pop(&GCMEMSTACK);
 }
 
 void vartable_from_question(VariableTable* vt,Question* q){
+	gcmemstack_pushnew(&GCMEMSTACK);
 	StructureList* sl_ptr=q->body;
 
 	while(sl_ptr->next!=NULL){
@@ -238,10 +273,11 @@ void vartable_from_question(VariableTable* vt,Question* q){
 
 		sl_ptr=sl_ptr->next;
 	}
-
+	gcmemstack_pop(&GCMEMSTACK);
 }
 
 void vartable_from_structure(VariableTable* vt,Structure* s){
+	gcmemstack_pushnew(&GCMEMSTACK);
 	//重複は考えない（後でまとめて削除する）
 	TermList* tl_ptr=s->arguments;
 
@@ -254,19 +290,23 @@ void vartable_from_structure(VariableTable* vt,Structure* s){
 
 		tl_ptr=tl_ptr->next;
 	}
+	gcmemstack_pop(&GCMEMSTACK);
 }
 
 
 
 int structure_unify(Structure* s1,Structure* s2,VariableTable* v1,VariableTable* v2,HistoryTable* h){
+	gcmemstack_pushnew(&GCMEMSTACK);
 	TermList* s1_ptr;
 	TermList* s2_ptr;
 
 	if(s1->functor!=s2->functor){
+		gcmemstack_pop(&GCMEMSTACK);
 		return 0;
 	}
 
 	if(structure_arity(s1)!=structure_arity(s2)){
+		gcmemstack_pop(&GCMEMSTACK);
 		return 0;
 	}
 
@@ -275,6 +315,7 @@ int structure_unify(Structure* s1,Structure* s2,VariableTable* v1,VariableTable*
 	while(s1_ptr->next!=NULL){
 
 		if(!term_unify(s1_ptr->next->term,s2_ptr->next->term,v1,v2,h)){
+			gcmemstack_pop(&GCMEMSTACK);
 			return 0;
 		}
 
@@ -282,83 +323,108 @@ int structure_unify(Structure* s1,Structure* s2,VariableTable* v1,VariableTable*
 		s2_ptr=s2_ptr->next;
 	}
 
+	gcmemstack_pop(&GCMEMSTACK);
 	return 1;
 }
 
 Term* term_remove_ppterm(Term* t){
+	gcmemstack_pushnew(&GCMEMSTACK);
 	if(t->tag==TERM_PPTERM){
+		gcmemstack_pop(&GCMEMSTACK);
 		return term_remove_ppterm(t->value.ppterm->termptr);
 	}else{
+		gcmemstack_pop(&GCMEMSTACK);
 		return t;
 	}
+
 }
 
 int term_unify(Term* caller,Term* callee,VariableTable* v1,VariableTable* v2,HistoryTable* h){
+	gcmemstack_pushnew(&GCMEMSTACK);
 	if(caller->tag==TERM_INTEGER && callee->tag==TERM_INTEGER){
+		gcmemstack_pop(&GCMEMSTACK);
 		return caller->value.integer==callee->value.integer;
 	}else if(caller->tag==TERM_STRUCTURE && callee->tag==TERM_STRUCTURE){
+		gcmemstack_pop(&GCMEMSTACK);
 		return structure_unify(caller->value.structure,callee->value.structure,v1,v2,h);
 	}else if(caller->tag==TERM_INTEGER && callee->tag==TERM_STRUCTURE){
+		gcmemstack_pop(&GCMEMSTACK);
 		return 0;
 	}else if(caller->tag==TERM_STRUCTURE && callee->tag==TERM_INTEGER){
+		gcmemstack_pop(&GCMEMSTACK);
 		return 0;
 	}else if(caller->tag==TERM_PPTERM && callee->tag==TERM_PPTERM
 			 && caller->value.ppterm->termptr->tag==TERM_UNBOUND && callee->value.ppterm->termptr->tag==TERM_UNBOUND){
 
 		htable_addforward(h,callee->value.ppterm,callee->value.ppterm->termptr);
 		callee->value.ppterm->termptr=caller->value.ppterm->termptr;
+		gcmemstack_pop(&GCMEMSTACK);
 		return 1;
 
 	}else if(caller->tag==TERM_PPTERM && caller->value.ppterm->termptr->tag==TERM_UNBOUND){
 		*(caller->value.ppterm->termptr)=*term_remove_ppterm(callee);
 		htable_add(h,caller->value.ppterm->termptr);
+		gcmemstack_pop(&GCMEMSTACK);
 		return 1;
 	}else if(callee->tag==TERM_PPTERM && callee->value.ppterm->termptr->tag==TERM_UNBOUND){
 		*(callee->value.ppterm->termptr)=*term_remove_ppterm(caller);
 		htable_add(h,callee->value.ppterm->termptr);
+		gcmemstack_pop(&GCMEMSTACK);
 		return 1;
 	}else{
+		gcmemstack_pop(&GCMEMSTACK);
 		return term_unify(term_remove_ppterm(caller),term_remove_ppterm(callee),v1,v2,h);
 	}
 
+	gcmemstack_pop(&GCMEMSTACK);
 	return 0;
 }
 
 
 Structure* structure_to_portable(Structure* s,VariableTable* vt){
-	Structure* result=gc_malloc(sizeof(Structure),F_STRUCTURE);
+	gcmemstack_pushnew(&GCMEMSTACK);
+	Structure* result=gc_malloc(sizeof(Structure),F_STRUCTURE,&GCMEMSTACK);
 	TermList* ptr;
 	TermList* res_ptr;
 
 	result->functor=s->functor;
-	result->arguments=gc_malloc(sizeof(TermList),F_TERMLIST);
+	result->arguments=gc_malloc(sizeof(TermList),F_TERMLIST,&GCMEMSTACK);
 	result->arguments->next=NULL;
 
 	ptr=s->arguments;
 	res_ptr=result->arguments;
 	while(ptr->next!=NULL){
-		res_ptr->next=gc_malloc(sizeof(TermList),F_TERMLIST);
+		res_ptr->next=gc_malloc(sizeof(TermList),F_TERMLIST,&GCMEMSTACK);
 		res_ptr->next->term=term_to_portable(ptr->next->term,vt);
 
 		ptr=ptr->next;
 		res_ptr=res_ptr->next;
 	}
 	res_ptr->next=NULL;
+	gcmemstack_returnptr(result,&GCMEMSTACK);
+	gcmemstack_pop(&GCMEMSTACK);
 	return result;
 }
 
 Term* term_to_portable(Term* t,VariableTable* vt){
-	Term* result=gc_malloc(sizeof(Term),F_TERM);
+	gcmemstack_pushnew(&GCMEMSTACK);
+
+	Term* result=gc_malloc(sizeof(Term),F_TERM,&GCMEMSTACK);
 	switch(t->tag){
 	case TERM_INTEGER:
+		gcmemstack_pop(&GCMEMSTACK);
 		return t;
 	case TERM_STRUCTURE:
 		result->tag=TERM_STRUCTURE;
 		result->value.structure=structure_to_portable(t->value.structure,vt);
+		gcmemstack_returnptr(result,&GCMEMSTACK);
+		gcmemstack_pop(&GCMEMSTACK);
 		return result;
 	case TERM_VARIABLE:
 		result->tag=TERM_PPTERM;
 		result->value.ppterm=vartable_findvar(vt,t->value.variable);
+		gcmemstack_returnptr(result,&GCMEMSTACK);
+		gcmemstack_pop(&GCMEMSTACK);
 		return result;
 	case TERM_UNBOUND:
 		error("unexpected case.");
@@ -367,5 +433,6 @@ Term* term_to_portable(Term* t,VariableTable* vt){
 		error("invalid term.");
 		break;
 	}
+	gcmemstack_pop(&GCMEMSTACK);
 }
 

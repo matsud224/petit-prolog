@@ -8,6 +8,16 @@
 struct _clause;
 struct _vartable;
 
+typedef struct _gcmemlist{
+    struct _gcmemlist* next;
+    void* memptr;
+} GCMemoryList;
+
+typedef struct _gcmemstack{
+    struct _gcmemstack* next;
+    GCMemoryList memlist;
+} GCMemoryStack;
+
 typedef struct _clauselist{
     struct _clauselist* next;
     struct _clause* clause;
@@ -180,6 +190,7 @@ Term* parse_term(FILE* fp);
 TermList* parse_term_list(FILE* fp);
 
 //interpret.c
+extern Box* CURRENT_BEGINBOX;
 extern HTStack GlobalStack;
 int structure_arity(Structure* s);
 void interpret(FILE* fp);
@@ -198,11 +209,19 @@ int term_unify(Term* t1,Term* t2,VariableTable* v1,VariableTable* v2,HistoryTabl
 Term* term_remove_ppterm(Term* t);
 
 //gc.c
+extern GCMemoryStack GCMEMSTACK;
 void gc_init();
 void gc_mark_sub(void* m);
 void gc_mark();
 void gc_sweep();
-void* gc_malloc(size_t size,FieldTag tag);
+void* gc_malloc(size_t size,FieldTag tag,GCMemoryStack* gcms);
 void gc_freelist_show();
 size_t gc_freesize();
 void gc_chankallocate();
+void gcmemlist_add(GCMemoryList* ml,void* mem);
+GCMemoryList* gcmemstack_top(GCMemoryStack* gcms);
+void gcmemstack_pushnew(GCMemoryStack *gcms);
+void gcmemstack_pop(GCMemoryStack *gcms);
+void gcmemstack_returnptr(void* mem,GCMemoryStack *gcms);
+int gcmemstack_size(GCMemoryStack *gcms);
+int gcmemlist_size(GCMemoryList *gcml);
