@@ -364,8 +364,8 @@ alloc_retry:
 
 	if(try_count==0){
 		try_count=1;
-		//gc_mark();
-		//gc_sweep();
+		gc_mark();
+		gc_sweep();
 		goto alloc_retry;
 	}
 
