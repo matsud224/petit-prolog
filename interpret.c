@@ -55,6 +55,8 @@ Box* box_get(){
 	b->is_end=0;
 	b->is_failed=0;
 	b->selected_clause=NULL;
+	b->structure=NULL;
+	b->vartable=NULL;
 	gcmemstack_returnptr(b,&GCMEMSTACK);
 	gcmemstack_pop(&GCMEMSTACK);
 	return b;
@@ -103,9 +105,9 @@ void interpret_question(Question* question){
 }
 
 void execute(Box* current){
-	gcmemstack_pushnew(&GCMEMSTACK);
-retry:
 
+retry:
+	gcmemstack_pushnew(&GCMEMSTACK);
 	while(!(current->is_end)){
 		VariableTable* callee_new_vartable;
 
@@ -151,7 +153,16 @@ fail_process:
 			//リセット
 			current->is_failed=0;
 			current->selected_clause=current->structure->functor->clause_list;
+
 			current=current->failure;
+
+			if(current!=NULL && current->structure!=NULL){
+				if(!(current->structure->functor==sym_get("!") && structure_arity(current->structure)==0)){
+					//カット述語はカット実行後next_clauseを使わずに、直接successに飛ぶためsuccessは残しておかなくてはいけない
+					//他に組み込み述語を追加した時に、必要ならばここに書き足さないといけない！
+					current->success=NULL;
+				}
+			}
 
 			htstack_pop(&GlobalStack);
 
@@ -214,7 +225,7 @@ fail_process:
 				gcmemstack_pop(&GCMEMSTACK);
 				return;
 			}
-
+			gcmemstack_pop(&GCMEMSTACK);
 			goto retry;
 		}
 	}else{
@@ -239,6 +250,7 @@ VariableTable* next_clause(Box* box){
 
     for(cl_ptr=box->selected_clause;cl_ptr->next!=NULL;cl_ptr=cl_ptr->next){
 		if(arity==cl_ptr->next->clause->arity){
+			gcmemstack_pushnew(&GCMEMSTACK);
 			htstack_pushnew(&GlobalStack);
 			HistoryTable* history=htstack_toptable(GlobalStack);
 
@@ -251,12 +263,15 @@ VariableTable* next_clause(Box* box){
 
 			if(structure_unify(portable1,portable2,box->vartable,new_vartable,history)){
 				box->selected_clause=cl_ptr->next;
+
+				gcmemstack_pop(&GCMEMSTACK);
 				gcmemstack_returnptr(new_vartable,&GCMEMSTACK);
 				gcmemstack_pop(&GCMEMSTACK);
 				return new_vartable;
 			}else{
 				htstack_pop(&GlobalStack);
 			}
+			gcmemstack_pop(&GCMEMSTACK);
 		}
 
     }

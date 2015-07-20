@@ -13,7 +13,7 @@ int sym_hash(char* str){
 		value+=*curr;
 		curr++;
 	}
-	return value%64;
+	return value%SYMTABLE_LEN;
 }
 
 SymbolTable* sym_get(char* str){
