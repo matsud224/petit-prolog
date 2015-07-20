@@ -11,6 +11,8 @@ ChankList chanklist;
 
 GCMemoryStack GCMEMSTACK;
 
+int SHOW_GCINFO=0;
+
 size_t allocate=0;
 
 void gcmemlist_add(GCMemoryList* ml,void* mem){
@@ -220,6 +222,7 @@ void gc_mark_sub(void* m){
 
 void gc_mark(){
 	//シンボルテーブルを巡る
+	//注:今後シンボルテーブルのエントリをGCしようと思ったら、readlineの補完のことも気にかけないといけない
 	int i;
 	for(i=0;i<SYMTABLE_LEN;i++){
 		SymbolTable* ptr=&symtable[i];
@@ -265,8 +268,7 @@ void gc_sweep(){
 	ChankList* clist=&chanklist;
     GCHeader* sweeping;
 
-    size_t sweeped=0;
-    size_t before=gc_freesize();
+    size_t before_freesize=gc_freesize(),after_freesize;
 
     freelist.next=NULL;
 	int first;
@@ -280,7 +282,7 @@ void gc_sweep(){
 				sweeping->marked=0;
 			}else{
 				//printf("sweeped: %p  ",sweeping+1);
-				sweeped+=sweeping->fieldsize;
+
 				if(!first && freelist.next!=NULL && sweeping==(GCHeader*)(((char*)(freelist.next+1))+sizeof(char)*freelist.next->fieldsize)){
 					//printf("@\n");
 					freelist.next->fieldsize+=sweeping->fieldsize+sizeof(GCHeader);
@@ -297,7 +299,10 @@ void gc_sweep(){
 		clist=clist->next;
     }
 
-    printf("\nGC:sweep finished. %d -> %d (%d)\n",before,sweeped+before,allocate);
+    if(SHOW_GCINFO){
+    	after_freesize=gc_freesize();
+		printf("GC:sweep finished. %d -> %d (collected:%d total:%d)\n",before_freesize,after_freesize,after_freesize-before_freesize,allocate);
+    }
 }
 
 void gc_freelist_show(){
@@ -406,7 +411,9 @@ void gc_chankallocate(){
 
 	allocate+=CHANK_SIZE;
 
-	printf("\nGC:allocated new chank.\n");
+	if(SHOW_GCINFO){
+		printf("GC:allocated new chank.\n");
+	}
 	//gc_freelist_show();
 
 	return;

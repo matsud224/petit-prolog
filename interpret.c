@@ -5,6 +5,8 @@
 HTStack GlobalStack;
 Box* CURRENT_BEGINBOX;
 
+
+
 void interpret(FILE* fp){
 	gcmemstack_pushnew(&GCMEMSTACK);
 
@@ -132,6 +134,12 @@ retry:
 				}
 			}
 
+			current=current->success;
+			continue;
+		}else if(current->structure->functor==sym_get("gcinfo") && structure_arity(current->structure)==0){
+			//うまく動くかわからない（他の述語と混ぜると狂う可能性大・単独で使うべし）
+			//しかし、GCのチェック用なので、良しとしておく
+			SHOW_GCINFO=1;
 			current=current->success;
 			continue;
 		}

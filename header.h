@@ -210,6 +210,7 @@ int term_unify(Term* t1,Term* t2,VariableTable* v1,VariableTable* v2,HistoryTabl
 Term* term_remove_ppterm(Term* t);
 
 //gc.c
+extern int SHOW_GCINFO;
 extern GCMemoryStack GCMEMSTACK;
 void gc_init();
 void gc_mark_sub(void* m);
