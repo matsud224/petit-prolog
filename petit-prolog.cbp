@@ -32,6 +32,9 @@
 		<Compiler>
 			<Add option="-Wall" />
 		</Compiler>
+		<Linker>
+			<Add option="-lreadline" />
+		</Linker>
 		<Unit filename="bnf.txt" />
 		<Unit filename="etc.c">
 			<Option compilerVar="CC" />

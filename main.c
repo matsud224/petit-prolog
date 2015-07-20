@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <readline/readline.h>
+#include <malloc.h>
 #include "header.h"
 
 
@@ -17,12 +19,17 @@ int main(int argc,char* argv[]){
 
 	return 0;
 */
+
 	gc_init();
 
+	char* p;
+
     while(1){
-        printf(">");
-        interpret(stdin);
-        printf("\n");
+        p=readline(">");
+        FILE* memfile=fmemopen((void*)p,strlen(p),"r");
+        interpret(memfile);
+        fclose(memfile);
+		free(p);
 	}
 	return 0;
 }
