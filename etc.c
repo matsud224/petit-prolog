@@ -18,12 +18,11 @@ void htable_add(HistoryTable* ht,Term* pterm){
 	HistoryTable* temp=ptr->next;
 	ptr->next=gc_malloc(sizeof(HistoryTable),F_HISTORYTABLE,&GCMEMSTACK);
 	ptr->next->pterm=pterm;
-	ptr->next->prev=NULL;
 	ptr->next->next=temp;
 	gcmemstack_pop(&GCMEMSTACK);
 	return;
 }
-void htable_addforward(HistoryTable* ht,VariableTable* ppterm,Term* prev){
+void htable_addforward(HistoryTable* ht,VariableTable* ppterm){
 	gcmemstack_pushnew(&GCMEMSTACK);
 
 	HistoryTable* ptr=ht;
@@ -33,7 +32,6 @@ void htable_addforward(HistoryTable* ht,VariableTable* ppterm,Term* prev){
 	HistoryTable* temp=ptr->next;
 	ptr->next=gc_malloc(sizeof(HistoryTable),F_HISTORYTABLE,&GCMEMSTACK);
 	ptr->next->ppterm=ppterm;
-	ptr->next->prev=prev;
 	ptr->next->next=temp;
 	gcmemstack_pop(&GCMEMSTACK);
 	return;
@@ -71,7 +69,7 @@ void vartable_show(VariableTable v1){
 	while(ptr->next!=NULL){
 		if(ptr->next->variable->name[0]!='%'){
 			printf("%s = ",ptr->next->variable->name);
-			term_show(ptr->next->termptr);
+			term_show(trace_forward(ptr->next)->termptr);
 			//printf("(%d)",ptr->next->value.ref_bound);
 			printf("\n");
 		}
@@ -113,7 +111,7 @@ void term_show(Term* t){
 		printf("%s",t->value.variable->name);
 		break;
 	case TERM_PPTERM:
-		term_show(t->value.ppterm->termptr);
+		term_show(trace_forward(t->value.ppterm)->termptr);
 		break;
 	default:
 		printf("<unknown>");
@@ -134,7 +132,7 @@ void list_show(Structure s){
 		// [] が来た　→　リスト終端
 		return;
 	}else{
-		//printf("<<tag:%d name:>>\n",second_arg.tag);
+		//printf("<<tag:%d name:>>\n",second_arg->tag);
 		printf("|"); term_show(s.arguments->next->next->term);
 	}
 
@@ -231,11 +229,11 @@ void htstack_pop(HTStack *hts){
 	//巻き戻し
 	HistoryTable* hptr=ptr->htable;
 	while(hptr->next!=NULL){
-		if(hptr->next->prev==NULL){
+		if(hptr->next->ppterm==NULL){
 			hptr->next->pterm->tag=TERM_UNBOUND;
 			//printf("1 unbind\n");
 		}else{
-			hptr->next->ppterm->termptr=hptr->next->prev;
+			hptr->next->ppterm->forward=NULL;
 			//printf("redo:pointer\n");
 		}
 

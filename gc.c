@@ -140,7 +140,6 @@ void gc_mark_sub(void* m){
 		gc_mark_sub(((HistoryTable*)m)->next);
 		gc_mark_sub(((HistoryTable*)m)->ppterm);
 		gc_mark_sub(((HistoryTable*)m)->pterm);
-		gc_mark_sub(((HistoryTable*)m)->prev);
 		break;
 	case F_VARIABLETABLE:
 		gc_mark_sub(((VariableTable*)m)->next);

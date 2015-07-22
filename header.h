@@ -126,6 +126,7 @@ typedef struct _program{
 
 typedef struct _vartable{
 	struct _vartable* next;
+	struct _vartable* forward;
 	Variable variable;
 	Term* termptr;
 } VariableTable;
@@ -134,7 +135,6 @@ typedef struct _history{
 	struct _history* next;
 	struct _vartable* ppterm;
 	Term* pterm;
-	Term* prev;
 } HistoryTable;
 
 typedef struct _htstack{
@@ -162,7 +162,7 @@ void term_show(Term* t);
 void structure_show(Structure s);
 
 void htable_add(HistoryTable *vl,Term* pterm);
-void htable_addforward(HistoryTable *vl,VariableTable* ppterm,Term* prev);
+void htable_addforward(HistoryTable *vl,VariableTable* ppterm);
 
 void vartable_addvar(VariableTable *vl,Variable var);
 VariableTable* vartable_findvar(VariableTable* vl,Variable var);
@@ -208,6 +208,7 @@ Term* term_unwrap(Term* t,VariableTable vt);
 int structure_unify(Structure* s1,Structure* s2,VariableTable* v1,VariableTable* v2,HistoryTable* h);
 int term_unify(Term* t1,Term* t2,VariableTable* v1,VariableTable* v2,HistoryTable* h);
 Term* term_remove_ppterm(Term* t);
+VariableTable* trace_forward(VariableTable* v);
 
 //gc.c
 extern int SHOW_GCINFO;

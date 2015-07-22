@@ -372,7 +372,7 @@ Term* term_remove_ppterm(Term* t){
 	gcmemstack_pushnew(&GCMEMSTACK);
 	if(t->tag==TERM_PPTERM){
 		gcmemstack_pop(&GCMEMSTACK);
-		return term_remove_ppterm(t->value.ppterm->termptr);
+		return term_remove_ppterm(trace_forward(t->value.ppterm)->termptr);
 	}else{
 		gcmemstack_pop(&GCMEMSTACK);
 		return t;
@@ -380,8 +380,33 @@ Term* term_remove_ppterm(Term* t){
 
 }
 
-int term_unify(Term* caller,Term* callee,VariableTable* v1,VariableTable* v2,HistoryTable* h){
+
+VariableTable* trace_forward(VariableTable* v){
+	while(v->forward!=NULL){
+		//printf("$");
+		v=v->forward;
+	}
+	return v;
+}
+
+int term_unify(Term* caller_raw,Term* callee_raw,VariableTable* v1,VariableTable* v2,HistoryTable* h){
 	gcmemstack_pushnew(&GCMEMSTACK);
+
+	Term* caller=caller_raw;
+	Term* callee=callee_raw;
+
+	if(caller->tag==TERM_PPTERM){
+		caller=trace_forward(caller->value.ppterm)->termptr;
+	}
+	if(callee->tag==TERM_PPTERM){
+		callee=trace_forward(callee->value.ppterm)->termptr;
+	}
+
+	if(callee==caller){
+		//単一化で同じ実体へ行き着いた
+		return 1;
+	}
+
 	if(caller->tag==TERM_INTEGER && callee->tag==TERM_INTEGER){
 		gcmemstack_pop(&GCMEMSTACK);
 		return caller->value.integer==callee->value.integer;
@@ -394,27 +419,31 @@ int term_unify(Term* caller,Term* callee,VariableTable* v1,VariableTable* v2,His
 	}else if(caller->tag==TERM_STRUCTURE && callee->tag==TERM_INTEGER){
 		gcmemstack_pop(&GCMEMSTACK);
 		return 0;
-	}else if(caller->tag==TERM_PPTERM && callee->tag==TERM_PPTERM
-			 && caller->value.ppterm->termptr->tag==TERM_UNBOUND && callee->value.ppterm->termptr->tag==TERM_UNBOUND){
-
-		htable_addforward(h,callee->value.ppterm,callee->value.ppterm->termptr);
-		callee->value.ppterm->termptr=caller->value.ppterm->termptr;
+	}else if(caller->tag==TERM_UNBOUND && callee->tag==TERM_UNBOUND){
+		//printf("@");
+		htable_addforward(h,trace_forward(callee_raw->value.ppterm));
+		//printf("forward: %s -> %s\n",trace_forward(callee_raw->value.ppterm)->variable->name,trace_forward(caller_raw->value.ppterm)->variable->name);
+		trace_forward(callee_raw->value.ppterm)->forward=trace_forward(caller_raw->value.ppterm);
 		gcmemstack_pop(&GCMEMSTACK);
 		return 1;
 
-	}else if(caller->tag==TERM_PPTERM && caller->value.ppterm->termptr->tag==TERM_UNBOUND){
-		*(caller->value.ppterm->termptr)=*term_remove_ppterm(callee);
-		htable_add(h,caller->value.ppterm->termptr);
+	}else if(caller->tag==TERM_UNBOUND){
+		//printf("*");
+		*(trace_forward(caller_raw->value.ppterm)->termptr)=*callee;
+		htable_add(h,trace_forward(caller_raw->value.ppterm)->termptr);
+		//printf("assigned: %s\n",trace_forward(caller_raw->value.ppterm)->variable->name);
 		gcmemstack_pop(&GCMEMSTACK);
 		return 1;
-	}else if(callee->tag==TERM_PPTERM && callee->value.ppterm->termptr->tag==TERM_UNBOUND){
-		*(callee->value.ppterm->termptr)=*term_remove_ppterm(caller);
-		htable_add(h,callee->value.ppterm->termptr);
+	}else if(callee->tag==TERM_UNBOUND){
+		//printf("*");
+		*(trace_forward(callee_raw->value.ppterm)->termptr)=*caller;
+		htable_add(h,trace_forward(callee_raw->value.ppterm)->termptr);
+		//printf("assigned: %s\n",trace_forward(callee_raw->value.ppterm)->variable->name);
 		gcmemstack_pop(&GCMEMSTACK);
 		return 1;
 	}else{
 		gcmemstack_pop(&GCMEMSTACK);
-		return term_unify(term_remove_ppterm(caller),term_remove_ppterm(callee),v1,v2,h);
+		return 0;
 	}
 
 	gcmemstack_pop(&GCMEMSTACK);
