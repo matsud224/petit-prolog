@@ -230,8 +230,9 @@ void htstack_pop(HTStack *hts){
 	HistoryTable* hptr=ptr->htable;
 	while(hptr->next!=NULL){
 		if(hptr->next->ppterm==NULL){
+
+			//printf("unbind: ");term_show(hptr->next->pterm);printf("\n");
 			hptr->next->pterm->tag=TERM_UNBOUND;
-			//printf("1 unbind\n");
 		}else{
 			hptr->next->ppterm->forward=NULL;
 			//printf("redo:pointer\n");

@@ -107,7 +107,7 @@ void interpret_question(Question* question){
 }
 
 void execute(Box* current){
-
+	int allsolution=0;
 retry:
 	gcmemstack_pushnew(&GCMEMSTACK);
 	while(!(current->is_end)){
@@ -216,17 +216,27 @@ fail_process:
 	if(vartable_hasitem(current->vartable)){
 		//変数テーブルに１つ以上あったら
 		vartable_show(*(current->vartable));
-		printf("\n this? (y/n) : ");
+
 		char ans='\0';
-		while(ans!='y' && ans!='n'){
-			ans=getc(stdin);
-		}
-		if(ans=='y'){
-			printf("\nyes.\n"); gcmemstack_pop(&GCMEMSTACK);return;
+		if(allsolution){
+			ans=';';
 		}else{
+			printf("\n? ");
+			while(ans!=';' && ans!='\n' && ans!='a'){
+				ans=getc(stdin);
+			}
+			while(ans!='\n' && getc(stdin)!='\n'){}
+		}
+		if(ans=='\n'){
+			printf("\nyes.\n"); gcmemstack_pop(&GCMEMSTACK);return;
+		}else if(ans==';' || ans=='a'){
 			current=current->failure;
 
 			htstack_pop(&GlobalStack);
+
+			if(ans=='a'){
+				allsolution=1;
+			}
 
 			if(current->is_begin){
 				printf("\nno.\n");
@@ -268,6 +278,8 @@ VariableTable* next_clause(Box* box){
 
 			Structure* portable1=structure_to_portable(box->structure,box->vartable);
 			Structure* portable2=structure_to_portable(cl_ptr->next->clause->head,new_vartable);
+
+			//printf("unification start: ");structure_show(*portable1);structure_show(*portable2);printf("\n");
 
 			if(structure_unify(portable1,portable2,box->vartable,new_vartable,history)){
 				box->selected_clause=cl_ptr->next;
@@ -431,14 +443,14 @@ int term_unify(Term* caller_raw,Term* callee_raw,VariableTable* v1,VariableTable
 		//printf("*");
 		*(trace_forward(caller_raw->value.ppterm)->termptr)=*callee;
 		htable_add(h,trace_forward(caller_raw->value.ppterm)->termptr);
-		//printf("assigned: %s\n",trace_forward(caller_raw->value.ppterm)->variable->name);
+		//printf("assigned: %s=",trace_forward(caller_raw->value.ppterm)->variable->name);term_show(callee);printf("\n");
 		gcmemstack_pop(&GCMEMSTACK);
 		return 1;
 	}else if(callee->tag==TERM_UNBOUND){
 		//printf("*");
 		*(trace_forward(callee_raw->value.ppterm)->termptr)=*caller;
 		htable_add(h,trace_forward(callee_raw->value.ppterm)->termptr);
-		//printf("assigned: %s\n",trace_forward(callee_raw->value.ppterm)->variable->name);
+		//printf("assigned: %s",trace_forward(callee_raw->value.ppterm)->variable->name);term_show(caller);printf("\n");
 		gcmemstack_pop(&GCMEMSTACK);
 		return 1;
 	}else{

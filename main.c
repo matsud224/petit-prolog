@@ -38,6 +38,7 @@ int main(int argc,char* argv[]){
 
     while(1){
         p=readline("> ");
+
         if(p==NULL){printf("\n");continue;}
         if(*p=='\0'){free(p);continue;}
         FILE* memfile=fmemopen((void*)p,strlen(p),"r");
@@ -51,6 +52,7 @@ int main(int argc,char* argv[]){
         }
 		free(p);
 	}
+
 	return 0;
 }
 
